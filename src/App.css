@@ -1,0 +1,111 @@
+#components-layout-demo-custom-trigger .trigger {
+  padding: 0 24px;
+  font-size: 18px;
+  line-height: 64px;
+  cursor: pointer;
+  transition: color 0.3s;
+}
+
+#components-layout-demo-custom-trigger .trigger:hover {
+  color: #1890ff;
+}
+
+#components-layout-demo-custom-trigger .logo {
+  height: 32px;
+  margin: 16px;
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.site-layout .site-layout-background {
+  background: #fff;
+}
+.ant-layout-header{
+  display: block;
+  /* background-color: red!important; */
+  width: 100%;
+  height: 50px;
+  display: flex;
+}
+.ant-layout-header .anticon  svg{
+  color: rgb(37, 37, 37);
+  font-size: 24px;
+}
+
+.ant-form-item{
+  margin-bottom: 0;
+}
+.ant-message-notice-wrapper{
+  display: flex;
+  justify-content: end;
+  margin-right: 20px;
+}
+.ant-message-notice-error .ant-message-notice-content{
+  background: rgb(247, 74, 74)!important;
+  padding: 15px 20px!important;
+  color: white;
+  font-size: 16px;
+}
+
+.ant-message-notice-error .ant-message-notice-content svg{
+  color: white;
+  font-size: 16px;
+}
+
+.ant-message-notice-success .ant-message-notice-content{
+  background: rgb(33, 165, 33) !important;
+  padding: 15px 20px!important;
+  color: white;
+  font-size: 16px;
+}
+
+.ant-message-notice-success .ant-message-notice-content svg{
+  color: white;
+  font-size: 16px;
+}
+.ant-table-thead tr th{
+  background: #F4D539!important;
+  color: black!important;
+}
+
+.ant-layout-sider{
+  width: 250px!important;
+  min-width: 250px!important;
+  max-width: 250px!important;
+}
+.ant-layout-sider.ant-layout-sider-collapsed{
+  width: 80px!important;
+  min-width: 80px!important;
+  max-width: 80px!important;
+}
+.ant-select-selection-overflow{
+  min-height: 40px;
+  padding: 6px 10px;
+}
+
+.ant-table-tbody tr.bg-red-200 td {
+  background-color: inherit;
+}
+.ant-tree-node-content-wrapper{
+  padding: 6px !important;
+  display: block !important;
+  background: rgb(243, 243, 243) !important;
+  width: 100% !important;
+  padding-left  : 20px !important;
+    
+}
+.ant-tree-treenode{
+  width: 100%;
+}
+.ant-tree-switcher{
+  padding-top: 6px;
+}
+.ant-tree-node-content-wrapper:hover{
+  background: rgb(170, 221, 255) !important;
+}
+.ant-layout-content{
+  overflow-y: auto;
+}
+.ant-tree-title{
+  font-size: 14px;
+  font-weight: 600;
+}
