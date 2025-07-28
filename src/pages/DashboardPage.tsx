@@ -70,7 +70,7 @@ const DashboardPage: React.FC = () => {
                                 <div className="w-full h-full aspect-w-16 aspect-h-9">
                                 <iframe
                                     title="Báo cáo Power BI"
-                                    src="https://app.powerbi.com/view?r=eyJrIjoiOWIyNDI3MjUtY2UzYS00OGU5LWFlMjItN2YyMDZmNzE5MDFlIiwidCI6ImIxNThlOWE1LTA2OTEtNGU0Zi1iYmExLTQxN2I5OWVjZDBhMCIsImMiOjEwfQ%3D%3D"
+                                    src="https://app.powerbi.com/view?r=eyJrIjoiNmExZDU4M2QtZDY5ZS00NjYwLWE1YzEtYmMxYzVkNGUyZjlhIiwidCI6ImIxNThlOWE1LTA2OTEtNGU0Zi1iYmExLTQxN2I5OWVjZDBhMCIsImMiOjEwfQ%3D%3D&pageName=95c4a75b6629632de60c"
                                     className="w-full h-full border-0"
                                     allowFullScreen
                                 ></iframe>
