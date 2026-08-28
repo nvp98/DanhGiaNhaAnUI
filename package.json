@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.6",
+    "@tinymce/tinymce-react": "^6.3.0",
     "antd": "^5.20.0",
     "axios": "^1.7.2",
     "chart.js": "^4.4.4",
@@ -25,6 +26,7 @@
     "react-router-dom": "^6.26.2",
     "redux": "^5.0.1",
     "redux-persist": "^6.0.0",
+    "sass": "^1.103.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

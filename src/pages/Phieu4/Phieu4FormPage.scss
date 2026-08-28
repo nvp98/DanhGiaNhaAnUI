@@ -1,0 +1,145 @@
+@use "../../styles/phieu" as *;
+
+/* ============================================================
+   TÙY BIẾN CHO PHIẾU 4 (MA TRẬN NHIỀU NHÀ THẦU — CỘT ĐỘNG)
+   ============================================================ */
+
+.phieu4-bang-block {
+    margin-top: 10px;
+}
+
+.phieu4-bang-title {
+    font-weight: 700;
+    font-size: $fs-ket-luan-title;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+
+    .print-only {
+        display: none;
+    }
+}
+
+.phieu4-ten-bang-edit {
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+
+    &:hover {
+        color: #004aad;
+    }
+}
+
+// Ma trận nhiều cột nhà thầu có thể tràn bề ngang — cho cuộn riêng, không cho
+// cả trang cuộn ngang (đồng bộ quy tắc chung của artifact/table responsive).
+.phieu4-table-scroll {
+    overflow-x: auto;
+    max-width: 100%;
+}
+
+.phieu4-table {
+    .cot-stt {
+        width: 45px;
+        min-width: 45px;
+        text-align: center;
+    }
+
+    .cot-noi-dung {
+        width: 400px;
+        min-width: 400px;
+        text-align: left;
+    }
+
+    .cot-dvt {
+        width: 100px;
+        min-width: 100px;
+        text-align: center;
+    }
+
+    .cot-thao-tac {
+        width: 90px;
+        min-width: 90px;
+    }
+
+    th {
+        text-align: center;
+        white-space: nowrap;
+    }
+
+    td {
+        min-width: 100px;
+    }
+
+    .o-stt {
+        text-align: center;
+        vertical-align: middle !important;
+        font-weight: 700;
+    }
+
+    .o-stt-con {
+        font-weight: 400;
+    }
+
+    .o-noi-dung {
+        text-align: left;
+        vertical-align: middle !important;
+        white-space: normal;
+    }
+
+    .o-dvt {
+        text-align: center;
+        vertical-align: middle !important;
+    }
+
+    .o-so {
+        text-align: center;
+        vertical-align: middle !important;
+        padding: 2px !important;
+        position: relative;
+
+        .o-input-so {
+            width: 100%;
+            text-align: center;
+        }
+
+        .o-tag-sua-tay {
+            position: absolute;
+            top: 0;
+            right: 0;
+            font-size: 9px;
+            line-height: 1.2;
+            padding: 0 3px;
+            margin: 0;
+        }
+    }
+
+    .o-thao-tac {
+        text-align: center;
+        white-space: nowrap;
+
+        button {
+            margin: 0 2px;
+        }
+    }
+}
+
+.phieu4-bang1-table {
+    .dong-nhom-bang1 td {
+        font-weight: 700;
+    }
+
+    .o-so-tong {
+        font-weight: 700;
+    }
+}
+
+@media print {
+    .phieu4-bang-title .print-only {
+        display: inline;
+    }
+
+    .phieu4-table-scroll {
+        overflow-x: visible;
+    }
+}

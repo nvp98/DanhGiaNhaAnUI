@@ -1,0 +1,543 @@
+@use "variables" as *;
+@use "mixins" as *;
+
+/* ============================================================
+   KHUNG PHIẾU A4 (DÙNG CHUNG PHIẾU 1, 2, 3, 4)
+   ============================================================ */
+
+.phieu-a4 {
+    background: $color-bg-white;
+    color: $color-text-main;
+    font-family: $font-phieu;
+    padding: 25px 30px 35px 30px;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+/* ============================================================
+   TOOLBAR
+   ============================================================ */
+
+.phieu-toolbar {
+    @include flex-between;
+    gap: 15px;
+    margin-bottom: 20px;
+}
+
+/* ============================================================
+   HEADER PHIẾU
+   ============================================================ */
+
+.phieu-header {
+    margin-bottom: 15px;
+
+    .phieu-title {
+        text-align: center;
+        font-size: $fs-title;
+        line-height: 1.2;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 3px;
+    }
+
+    .phieu-subtitle {
+        text-align: center;
+        font-size: $fs-subtitle;
+        line-height: 1.2;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-bottom: 18px;
+    }
+
+    .phieu-header-info {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        column-gap: 30px;
+        font-size: $fs-header-info;
+        line-height: 1.5;
+        margin-bottom: 10px;
+
+        > div:last-child {
+            text-align: left;
+        }
+
+        .label {
+            font-weight: 700;
+        }
+
+        .underline-text {
+            margin-left: 5px;
+        }
+    }
+}
+
+/* ============================================================
+   TABLE CƠ BẢN
+   ============================================================ */
+
+.phieu-table {
+    @include table-bordered($color-border);
+    font-size: $fs-table;
+
+    th, td {
+        padding: 6px 7px;
+    }
+
+    thead th {
+        text-align: center;
+        font-weight: 700;
+        background: $color-bg-white;
+        line-height: 1.2;
+    }
+
+    .dong-nhom td {
+        font-weight: 700;
+        text-transform: none;
+        background: $color-bg-white;
+        padding: 7px 8px;
+        text-align: left;
+    }
+
+    .dong-tieu-chi td {
+        min-height: 35px;
+    }
+
+    .o-tt {
+        text-align: center;
+        vertical-align: top !important;
+        padding-top: 8px !important;
+    }
+
+    .o-noi-dung {
+        text-align: left;
+        line-height: 1.4;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+
+    .o-ket-qua {
+        text-align: center;
+        vertical-align: middle !important;
+        font-size: $fs-check-mark;
+        font-weight: 700;
+        cursor: pointer;
+        user-select: none;
+        padding: 0 !important;
+        min-height: 38px;
+
+        &:hover {
+            background: $color-bg-hover;
+        }
+
+        &.da-chon {
+            font-weight: 900;
+        }
+    }
+
+    .o-ghi-chu {
+        position: relative;
+        vertical-align: top !important;
+        min-height: 38px;
+
+        .ghi-chu-cell-wrapper {
+            display: flex;
+            align-items: flex-start;
+            gap: 4px;
+            width: 100%;
+
+            .ghi-chu-content {
+                flex: 1;
+                min-width: 0;
+            }
+
+            .ghi-chu-btn-edit {
+                flex-shrink: 0;
+                padding: 0 4px;
+                height: 24px;
+                line-height: 24px;
+                color: #004aad;
+                border-color: #d9d9d9;
+
+                &:hover {
+                    color: #002b66;
+                    border-color: #004aad;
+                }
+            }
+        }
+
+        .ghi-chu-rich-preview {
+            font-size: 13px;
+            line-height: 1.35;
+            word-break: break-word;
+
+            p {
+                margin: 0 0 4px 0;
+                &:last-child {
+                    margin-bottom: 0;
+                }
+            }
+
+            img {
+                max-height: 50px;
+                max-width: 80px;
+                object-fit: cover;
+                margin: 2px 4px 2px 0;
+                border: 1px solid #d9d9d9;
+                border-radius: 3px;
+                display: inline-block;
+                vertical-align: middle;
+                cursor: zoom-in;
+                transition: border-color 0.15s, transform 0.15s;
+
+                &:hover {
+                    border-color: #004aad;
+                    transform: scale(1.05);
+                }
+            }
+        }
+    }
+
+    .ant-input,
+    .ant-input-textarea {
+        font-family: $font-phieu;
+        font-size: $fs-table;
+
+        textarea {
+            padding: 0;
+            line-height: 1.35;
+        }
+    }
+
+    .input-table {
+        padding: 0 !important;
+        width: 100%;
+    }
+}
+
+.phieu-add-row {
+    margin-top: 10px;
+}
+
+/* ============================================================
+   KẾT LUẬN / TỔNG HỢP
+   ============================================================ */
+
+.phieu-ket-luan {
+    margin-top: 20px;
+
+    .phieu-ket-luan-title {
+        font-size: $fs-ket-luan-title;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+
+    .phieu-ket-luan-table {
+        @include table-bordered($color-border);
+        font-size: $fs-ket-luan-table;
+
+        th, td {
+            padding: 6px 5px;
+        }
+
+        th {
+            text-align: center;
+            font-weight: 700;
+            line-height: 1.25;
+        }
+
+        .kl-center {
+            text-align: center;
+        }
+
+        .kl-value {
+            font-size: 15px;
+        }
+
+        .kl-ghi-chu {
+            min-height: 40px;
+            vertical-align: top !important;
+
+            .ant-input {
+                font-family: $font-phieu;
+                font-size: $fs-ket-luan-table;
+                padding: 0;
+            }
+        }
+    }
+
+    .ket-luan-ghi-chu {
+        margin-top: 10px;
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+        font-size: $fs-table;
+
+        > strong {
+            min-width: 60px;
+        }
+
+        .ghi-chu-print {
+            flex: 1;
+            white-space: pre-wrap;
+
+            img {
+                cursor: zoom-in;
+                transition: transform 0.15s;
+
+                &:hover {
+                    transform: scale(1.03);
+                }
+            }
+        }
+    }
+}
+
+/* ============================================================
+   QUY ƯỚC
+   ============================================================ */
+
+.phieu-quy-uoc {
+    margin-top: 8px;
+    font-size: $fs-note;
+    line-height: 1.45;
+
+    .quy-uoc-title {
+        font-weight: 700;
+        text-decoration: underline;
+        margin-bottom: 3px;
+    }
+
+    .quy-uoc-item {
+        margin-left: 20px;
+        margin-bottom: 4px;
+    }
+}
+
+/* ============================================================
+   CHỮ KÝ
+   ============================================================ */
+
+.phieu-chu-ky {
+    display: grid;
+    margin-top: 35px;
+    text-align: center;
+    font-family: $font-phieu;
+    font-size: 14px;
+
+    &.cols-2 {
+        grid-template-columns: 1fr 1fr;
+        column-gap: 60px;
+    }
+
+    &.cols-3 {
+        grid-template-columns: 1fr 1fr 1fr;
+        column-gap: 30px;
+    }
+
+    .chu-ky-block {
+        min-height: 160px;
+
+        .chu-ky-title {
+            font-size: 14px;
+            font-weight: 700;
+        }
+
+        .chu-ky-note {
+            font-size: $fs-note;
+            font-style: italic;
+            margin-top: 2px;
+        }
+
+        .chu-ky-space {
+            height: 100px;
+            position: relative;
+
+            span {
+                position: absolute;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                font-style: italic;
+                font-weight: normal;
+            }
+        }
+    }
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 900px) {
+    .phieu-a4 {
+        padding: 15px;
+    }
+
+    .phieu-header {
+        .phieu-title {
+            font-size: 20px;
+        }
+
+        .phieu-subtitle {
+            font-size: 16px;
+        }
+
+        .phieu-header-info {
+            grid-template-columns: 1fr;
+            gap: 5px;
+        }
+    }
+
+    .phieu-table {
+        font-size: 13px;
+    }
+}
+
+/* ============================================================
+   PRINT A4
+   ============================================================ */
+
+@media print {
+    @page {
+        size: A4 portrait;
+        margin: 10mm 9mm 10mm 9mm;
+    }
+
+    html,
+    body {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: $color-bg-white !important;
+    }
+
+    body {
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+
+    .no-print {
+        display: none !important;
+    }
+
+    .phieu-a4 {
+        width: 100%;
+        padding: 0;
+        margin: 0;
+        background: $color-bg-white;
+    }
+
+    .phieu-header {
+        .phieu-title {
+            font-size: $fs-print-title;
+        }
+
+        .phieu-subtitle {
+            font-size: $fs-print-subtitle;
+            margin-bottom: 14px;
+        }
+
+        .phieu-header-info {
+            font-size: $fs-print-header-info;
+            margin-bottom: 8px;
+        }
+    }
+
+    .phieu-table {
+        font-size: $fs-print-table;
+
+        th, td {
+            border: 1px solid $color-border-print;
+            padding: 4px 5px;
+        }
+
+        .dong-nhom td {
+            padding: 5px 6px;
+        }
+
+        .o-ket-qua {
+            font-size: $fs-print-check-mark;
+        }
+
+        .ghi-chu-rich-preview img,
+        .ghi-chu-print img,
+        .o-ghi-chu img {
+            max-height: 100px;
+            max-width: 100%;
+            object-fit: contain;
+            display: inline-block;
+            margin: 2px 4px 2px 0;
+            border: none;
+        }
+
+        tr {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        .dong-nhom {
+            break-after: avoid;
+            page-break-after: avoid;
+        }
+    }
+
+    .phieu-ket-luan {
+        margin-top: 15px;
+
+        .phieu-ket-luan-title {
+            font-size: 13px;
+        }
+
+        .phieu-ket-luan-table {
+            font-size: $fs-print-table;
+
+            td {
+                padding: 4px 5px;
+                border: 1px solid $color-border-print;
+            }
+        }
+
+        .ket-luan-ghi-chu {
+            font-size: $fs-print-note;
+        }
+    }
+
+    .phieu-chu-ky {
+        font-size: $fs-print-signatures;
+        margin-top: 20px;
+
+        .chu-ky-block .chu-ky-space {
+            height: 80px;
+        }
+    }
+}
+
+/* ============================================================
+   MODAL PHÓNG TO ẢNH GHI CHÚ (GhiChuHtml component)
+   ============================================================ */
+
+.modal-phong-to-anh {
+    .ant-modal-content {
+        padding: 8px;
+        background: transparent;
+        box-shadow: none;
+    }
+
+    .ant-modal-close {
+        color: $color-bg-white;
+        top: -36px;
+        right: -6px;
+
+        &:hover {
+            color: $color-bg-white;
+            opacity: 0.7;
+        }
+    }
+
+    .anh-phong-to {
+        display: block;
+        max-width: 85vw;
+        max-height: 85vh;
+        margin: 0 auto;
+        border-radius: 4px;
+    }
+}

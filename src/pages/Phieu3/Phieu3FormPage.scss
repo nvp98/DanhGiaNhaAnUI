@@ -1,0 +1,70 @@
+@use "../../styles/phieu" as *;
+
+/* ============================================================
+   TÙY BIẾN CHO PHIẾU 3 (BÁO CÁO THÁNG — BẢNG 1 / BẢNG 2)
+   ============================================================ */
+
+.phieu3-header-info {
+    text-align: center;
+    font-size: $fs-header-info;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.phieu3-section-title {
+    font-weight: 700;
+    font-size: $fs-ket-luan-title;
+    margin-bottom: 6px;
+}
+
+.phieu3-can-cu-list {
+    font-size: $fs-table;
+    line-height: 1.6;
+    margin-bottom: 10px;
+}
+
+.phieu3-bang-title {
+    font-weight: 700;
+    font-size: $fs-ket-luan-title;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.phieu3-bang1-table,
+.phieu3-bang2-table {
+    .cot-noi-dung {
+        width: 20%;
+        text-align: left;
+    }
+
+    th {
+        text-align: center;
+        font-size: 12px;
+        line-height: 1.25;
+    }
+
+    .o-noi-dung {
+        text-align: left;
+        vertical-align: middle !important;
+    }
+
+    .o-so {
+        text-align: center;
+        vertical-align: middle !important;
+        padding: 2px !important;
+
+        .o-input-so {
+            width: 100%;
+            text-align: center;
+        }
+    }
+
+    .o-so-tong {
+        font-weight: 700;
+    }
+}
+
+.no-print-mb {
+    margin-bottom: 5px;
+}

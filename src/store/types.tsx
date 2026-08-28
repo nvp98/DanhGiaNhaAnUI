@@ -1,6 +1,7 @@
 import { PersistPartial } from 'redux-persist/es/persistReducer'
 import { ShowMenuState } from './ShowMenuSlide'
 import { NhaAnState } from './NhaAnSlice'
+import { AuthV2State } from './authV2Slice'
 
 export interface RootState {
   root: RootType & PersistPartial
@@ -9,7 +10,8 @@ export interface RootType {
   auth: AuthState,
   notify: NotifyState,
   showMenu: ShowMenuState,
-  nhaAn: NhaAnState
+  nhaAn: NhaAnState,
+  authV2: AuthV2State
 }
 
 export interface AuthState {

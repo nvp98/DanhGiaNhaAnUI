@@ -1,0 +1,111 @@
+@use "../../styles/phieu" as *;
+
+/* ============================================================
+   TÙY BIẾN CỘT CHO PHIẾU 2 (ĐÁNH GIÁ CHẤT LƯỢNG SUẤT ĂN)
+   Bảng xoay ngang: mỗi tiêu chí là 1 cột (Đạt / K-Đạt),
+   mỗi dòng dữ liệu là 1 lượt kiểm tra (thời gian + vị trí)
+   ============================================================ */
+
+.phieu2-table {
+    table-layout: fixed;
+
+    .cot-thoi-gian {
+        width: 9%;
+    }
+
+    .cot-vi-tri {
+        width: 10%;
+    }
+
+    .cot-tieu-chi-ten {
+        font-size: 11px;
+        line-height: 1.25;
+    }
+
+    .cot-dat-sub {
+        width: 5%;
+    }
+
+    .cot-khong-dat-sub {
+        width: 9%;
+    }
+
+    .cot-khong-dat-sub-lon {
+        width: 15%;
+    }
+
+    .ghi-chu-note-header {
+        font-size: 9px;
+        font-weight: 400;
+        color: #888;
+        text-transform: none;
+        margin-top: 2px;
+    }
+
+    .o-thoi-gian,
+    .o-vi-tri {
+        text-align: center;
+        vertical-align: top !important;
+        padding-top: 8px !important;
+        font-size: 12px;
+    }
+
+    .o-diem-inline {
+        font-size: 10px;
+        font-weight: 400;
+        color: #666;
+        margin-top: 2px;
+    }
+
+    // Cả ô K-Đạt bấm được (giống ô Đạt) — không còn vùng checkbox nhỏ riêng
+    // bên trong phải rà đúng mới bấm được.
+    .o-khong-dat {
+        vertical-align: top !important;
+        padding: 6px 7px !important;
+
+        .o-khong-dat-ghichu {
+            margin-top: 3px;
+            text-align: left;
+            cursor: default;
+        }
+    }
+}
+
+.ket-qua-tong-hop {
+    font-size: 15px;
+}
+
+.phieu-y-kien {
+    margin-top: 20px;
+
+    .phieu-ket-luan-title {
+        font-size: 14px;
+        font-weight: 700;
+        margin-bottom: 5px;
+    }
+}
+
+.phieu-ghi-chu-footer {
+    margin-top: 20px;
+    font-size: $fs-note;
+    line-height: 1.45;
+
+    .ghi-chu-footer-title {
+        font-weight: 700;
+        margin-bottom: 3px;
+    }
+
+    .ghi-chu-footer-item {
+        margin-left: 10px;
+    }
+}
+
+@media (max-width: 900px) {
+    .phieu2-table {
+        font-size: 12px;
+
+        .cot-tieu-chi-ten {
+            font-size: 10px;
+        }
+    }
+}

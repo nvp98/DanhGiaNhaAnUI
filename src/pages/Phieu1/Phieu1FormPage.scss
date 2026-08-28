@@ -1,0 +1,69 @@
+@use "../../styles/phieu" as *;
+
+/* ============================================================
+   TÙY BIẾN CỘT CHO PHIẾU 1 (VSATTP)
+   ============================================================ */
+
+.phieu-table {
+    .cot-tt {
+        width: 6%;
+    }
+
+    .cot-noi-dung {
+        width: 50%;
+    }
+
+    .cot-dat {
+        width: 7%;
+    }
+
+    .cot-khong-dat {
+        width: 10%;
+    }
+
+    .cot-ghi-chu {
+        width: 27%;
+    }
+}
+
+.phieu-ket-luan-table {
+    .kl-cot-tt {
+        width: 6%;
+    }
+
+    .kl-cot-dat {
+        width: 14%;
+    }
+
+    .kl-cot-tong {
+        width: 15%;
+    }
+
+    .kl-cot-ty-le {
+        width: 25%;
+    }
+
+    .kl-cot-ket-luan {
+        width: 12%;
+    }
+
+    .kl-cot-diem {
+        width: 12%;
+    }
+
+    .kl-cot-ghi-chu {
+        width: 16%;
+    }
+}
+
+@media (max-width: 900px) {
+    .phieu-table {
+        .cot-noi-dung {
+            width: 45%;
+        }
+
+        .cot-ghi-chu {
+            width: 30%;
+        }
+    }
+}
