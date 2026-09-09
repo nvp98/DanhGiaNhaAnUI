@@ -5,6 +5,7 @@ export default interface ChuKyPhieuModel {
     buocThuTu: number;
     tenBuoc?: string;
     nguoiKyId?: number;
+    nguoiKyDuKienId?: number;
     chuKyId?: number;
     trangThai: string; // CHO_KY, DA_DUYET, TU_CHOI
     ghiChu?: string;

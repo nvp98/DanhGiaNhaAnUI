@@ -54,9 +54,13 @@
         vertical-align: middle !important;
         padding: 2px !important;
 
-        .o-input-so {
-            width: 100%;
-            text-align: center;
+        // Ô từng bị sửa tay trước đây (khác giá trị hệ thống tự tính) — hover
+        // để xem giá trị hệ thống gốc vs giá trị đã sửa, xem renderOBang1.
+        // Bảng 1/2 giờ chỉ hiển thị (không còn input), nên đây là <span>.
+        .o-so-sua-tay {
+            display: inline-block;
+            padding: 0 4px;
+            background-color: #fffbe6;
         }
     }
 

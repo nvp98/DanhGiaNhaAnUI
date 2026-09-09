@@ -19,7 +19,7 @@ import {
     PhieuHeader,
     PhieuSignatures,
     PhieuToolbar,
-    TienDoKy,
+    TinyMceInline,
     TinyMceModal,
 } from "../../components/phieu";
 
@@ -54,6 +54,12 @@ interface DongChecklist {
     id?: number;
     nhomId?: number;
     tieuChiId?: number;
+    // Snapshot tên tiêu chí lúc lưu (Phieu1ChiTietModel.tenTieuChi) — ưu tiên
+    // dùng để hiển thị thay vì tra cứu sống, để phiếu cũ không đổi theo khi
+    // Admin sửa/xóa tiêu chí gốc sau này. Rỗng với dòng mới chưa từng lưu
+    // (khi đó vẫn tra cứu sống theo tieuChiId, hợp lý vì chưa có gì để "đóng
+    // băng" cả).
+    tenTieuChiSnapshot?: string;
     noiDungTuThem?: string;
     ketQua?: string;
     ghiChu?: string;
@@ -63,7 +69,6 @@ interface DongChecklist {
 
 interface ModalGhiChuState {
     open: boolean;
-    loai: "CHECKLIST" | "KET_LUAN";
     thuTu?: number;
     title: string;
     subtitle?: string;
@@ -115,6 +120,10 @@ const Phieu1FormPage: React.FC = () => {
     const { data: danhSachTieuChiTatCa = [] } = useDanhSachTieuChiQuery({
         dangHoatDong: true,
     });
+    // Không lọc dangHoatDong — dùng riêng để TRA TÊN hiển thị, kể cả tiêu chí
+    // đã bị vô hiệu hóa sau này, để phiếu cũ (đặc biệt đã ký) vẫn hiện đúng
+    // tên tiêu chí lúc đó thay vì hiện trống (xem tenTieuChi bên dưới).
+    const { data: danhSachTieuChiTraTen = [] } = useDanhSachTieuChiQuery();
 
     const [themPhieu1, { isLoading: dangThem }] = useThemPhieu1Mutation();
     const [suaPhieu1, { isLoading: dangSua }] = useSuaPhieu1Mutation();
@@ -128,15 +137,18 @@ const Phieu1FormPage: React.FC = () => {
 
     const [ngayKiemTra, setNgayKiemTra] = useState(dayjs());
     const [bepAnId, setBepAnId] = useState<number | undefined>(undefined);
+    const [nhaThauId, setNhaThauId] = useState<number | undefined>(undefined);
     const [phongBanId, setPhongBanId] = useState<number | undefined>(undefined);
     const [ketLuanGhiChu, setKetLuanGhiChu] = useState("");
     const [danhSachDong, setDanhSachDong] = useState<DongChecklist[]>([]);
     const [daKhoiTao, setDaKhoiTao] = useState(false);
 
-    // Modal soạn TinyMCE
+    // Modal soạn TinyMCE — chỉ còn dùng cho ghi chú từng dòng checklist (có
+    // thể hàng chục dòng, mở modal khi cần soạn kỹ/chèn ảnh thay vì hiện
+    // thẳng TinyMCE cho từng dòng, quá nặng). Ghi chú Kết luận (duy nhất/phiếu)
+    // dùng khung TinyMCE hiện thẳng — xem TinyMceInline bên dưới.
     const [modalGhiChu, setModalGhiChu] = useState<ModalGhiChuState>({
         open: false,
-        loai: "CHECKLIST",
         title: "",
         value: "",
     });
@@ -156,49 +168,78 @@ const Phieu1FormPage: React.FC = () => {
         if (danhSachNhom.length === 0) return;
         if (!laTaoMoi && (dangTaiPhieu || !chiTietPhieu)) return;
 
-        const idNhomHopLe = new Set(danhSachNhom.map((n: NhomTieuChiModel) => n.id));
-        const tieuChiTrongPhieu1 = danhSachTieuChiTatCa.filter(
-            (tc: TieuChiModel) => tc.nhomId && idNhomHopLe.has(tc.nhomId)
-        );
-        const nhomSapXep = [...danhSachNhom].sort((a: NhomTieuChiModel, b: NhomTieuChiModel) => a.thuTu - b.thuTu);
         const chiTietDaLuu = chiTietPhieu?.chiTiet ?? [];
-        const dong: DongChecklist[] = [];
-        let thuTu = 0;
+        const trangThaiPhieu = chiTietPhieu?.phieu.trangThai;
+        // Phiếu đã CHO_KY/DA_DUYET là hồ sơ đã chốt — chỉ hiển thị ĐÚNG các
+        // dòng đã lưu lúc ký, KHÔNG trộn thêm tiêu chí mới phát sinh sau này
+        // (tránh phiếu cũ tự "mọc" thêm dòng trống chưa trả lời khi Admin
+        // thêm tiêu chí mới, gây hiểu nhầm là phiếu thiếu đánh giá).
+        const phieuDaChotKhongTronMoi =
+            !laTaoMoi && (trangThaiPhieu === "CHO_KY" || trangThaiPhieu === "DA_DUYET");
 
-        for (const nhom of nhomSapXep) {
-            const tieuChiCuaNhom = tieuChiTrongPhieu1
-                .filter((tc: TieuChiModel) => tc.nhomId === nhom.id)
-                .sort((a: TieuChiModel, b: TieuChiModel) => a.thuTu - b.thuTu);
+        let dong: DongChecklist[];
 
-            for (const tc of tieuChiCuaNhom) {
-                const daLuu = chiTietDaLuu.find((ct: Phieu1ChiTietModel) => ct.tieuChiId === tc.id);
+        if (phieuDaChotKhongTronMoi) {
+            dong = chiTietDaLuu
+                .slice()
+                .sort((a, b) => a.thuTu - b.thuTu)
+                .map((ct: Phieu1ChiTietModel) => ({
+                    id: ct.id,
+                    nhomId: ct.nhomId,
+                    tieuChiId: ct.tieuChiId,
+                    tenTieuChiSnapshot: ct.tenTieuChi,
+                    noiDungTuThem: ct.noiDungTuThem,
+                    ketQua: ct.ketQua,
+                    ghiChu: ct.ghiChu,
+                    thuTu: ct.thuTu,
+                    laDongTuThem: !ct.tieuChiId,
+                }));
+        } else {
+            const idNhomHopLe = new Set(danhSachNhom.map((n: NhomTieuChiModel) => n.id));
+            const tieuChiTrongPhieu1 = danhSachTieuChiTatCa.filter(
+                (tc: TieuChiModel) => tc.nhomId && idNhomHopLe.has(tc.nhomId)
+            );
+            const nhomSapXep = [...danhSachNhom].sort((a: NhomTieuChiModel, b: NhomTieuChiModel) => a.thuTu - b.thuTu);
+            dong = [];
+            let thuTu = 0;
+
+            for (const nhom of nhomSapXep) {
+                const tieuChiCuaNhom = tieuChiTrongPhieu1
+                    .filter((tc: TieuChiModel) => tc.nhomId === nhom.id)
+                    .sort((a: TieuChiModel, b: TieuChiModel) => a.thuTu - b.thuTu);
+
+                for (const tc of tieuChiCuaNhom) {
+                    const daLuu = chiTietDaLuu.find((ct: Phieu1ChiTietModel) => ct.tieuChiId === tc.id);
+                    dong.push({
+                        id: daLuu?.id,
+                        nhomId: nhom.id,
+                        tieuChiId: tc.id,
+                        tenTieuChiSnapshot: daLuu?.tenTieuChi,
+                        ketQua: daLuu?.ketQua,
+                        ghiChu: daLuu?.ghiChu,
+                        thuTu: thuTu++,
+                        laDongTuThem: false,
+                    });
+                }
+            }
+
+            const idTieuChiTrongMaster = new Set(tieuChiTrongPhieu1.map((tc: TieuChiModel) => tc.id));
+            for (const ct of chiTietDaLuu) {
+                if (ct.tieuChiId && idTieuChiTrongMaster.has(ct.tieuChiId)) {
+                    continue;
+                }
                 dong.push({
-                    id: daLuu?.id,
-                    nhomId: nhom.id,
-                    tieuChiId: tc.id,
-                    ketQua: daLuu?.ketQua,
-                    ghiChu: daLuu?.ghiChu,
+                    id: ct.id,
+                    nhomId: ct.nhomId,
+                    tieuChiId: ct.tieuChiId,
+                    tenTieuChiSnapshot: ct.tenTieuChi,
+                    noiDungTuThem: ct.noiDungTuThem,
+                    ketQua: ct.ketQua,
+                    ghiChu: ct.ghiChu,
                     thuTu: thuTu++,
-                    laDongTuThem: false,
+                    laDongTuThem: !ct.tieuChiId,
                 });
             }
-        }
-
-        const idTieuChiTrongMaster = new Set(tieuChiTrongPhieu1.map((tc: TieuChiModel) => tc.id));
-        for (const ct of chiTietDaLuu) {
-            if (ct.tieuChiId && idTieuChiTrongMaster.has(ct.tieuChiId)) {
-                continue;
-            }
-            dong.push({
-                id: ct.id,
-                nhomId: ct.nhomId,
-                tieuChiId: ct.tieuChiId,
-                noiDungTuThem: ct.noiDungTuThem,
-                ketQua: ct.ketQua,
-                ghiChu: ct.ghiChu,
-                thuTu: thuTu++,
-                laDongTuThem: !ct.tieuChiId,
-            });
         }
 
         setDanhSachDong(dong);
@@ -206,6 +247,7 @@ const Phieu1FormPage: React.FC = () => {
         if (chiTietPhieu) {
             setNgayKiemTra(dayjs(chiTietPhieu.phieu.ngayKiemTra));
             setBepAnId(chiTietPhieu.phieu.bepAnId);
+            setNhaThauId(chiTietPhieu.phieu.nhaThauId);
             setPhongBanId(chiTietPhieu.phieu.phongBanId);
             setKetLuanGhiChu(chiTietPhieu.ketLuan?.ghiChu ?? "");
         }
@@ -232,7 +274,7 @@ const Phieu1FormPage: React.FC = () => {
         phieu.trangThai === "TU_CHOI";
 
     const tenTieuChi = (tieuChiId?: number) =>
-        danhSachTieuChiTatCa.find((tc: TieuChiModel) => tc.id === tieuChiId)?.noiDung ?? "";
+        danhSachTieuChiTraTen.find((tc: TieuChiModel) => tc.id === tieuChiId)?.noiDung ?? "";
 
     const tenNhaThau = (nhaThauId: number) =>
         danhSachNhaThau.find((nt: NhaThauModel) => nt.id === nhaThauId)?.ten ?? "";
@@ -295,7 +337,6 @@ const Phieu1FormPage: React.FC = () => {
     const moModalGhiChuDong = (dong: DongChecklist, tieuChiTen?: string) => {
         setModalGhiChu({
             open: true,
-            loai: "CHECKLIST",
             thuTu: dong.thuTu,
             title: "Soạn ghi chú & Chèn hình ảnh",
             subtitle: tieuChiTen || dong.noiDungTuThem || `Dòng ${dong.thuTu + 1}`,
@@ -303,21 +344,9 @@ const Phieu1FormPage: React.FC = () => {
         });
     };
 
-    const moModalGhiChuKetLuan = () => {
-        setModalGhiChu({
-            open: true,
-            loai: "KET_LUAN",
-            title: "Soạn ghi chú & Chèn hình ảnh kết luận",
-            subtitle: "Ghi chú kết quả kiểm tra tổng thể",
-            value: ketLuanGhiChu || "",
-        });
-    };
-
     const luuGhiChuModal = (html: string) => {
-        if (modalGhiChu.loai === "CHECKLIST" && modalGhiChu.thuTu !== undefined) {
+        if (modalGhiChu.thuTu !== undefined) {
             capNhatDong(modalGhiChu.thuTu, { ghiChu: html });
-        } else if (modalGhiChu.loai === "KET_LUAN") {
-            setKetLuanGhiChu(html);
         }
         setModalGhiChu(prev => ({ ...prev, open: false }));
     };
@@ -327,11 +356,11 @@ const Phieu1FormPage: React.FC = () => {
     // ============================================================
 
     const luuPhieu = async () => {
-        if (!bepAnId || !phongBanId) {
+        if (!bepAnId || !nhaThauId || !phongBanId) {
             dispatch(
                 setNotify({
                     typeNotify: "error",
-                    titleNotify: "Vui lòng chọn bếp ăn và phòng ban lập phiếu",
+                    titleNotify: "Vui lòng chọn bếp ăn, nhà thầu và phòng ban lập phiếu",
                     messageNotify: "",
                 })
             );
@@ -351,6 +380,7 @@ const Phieu1FormPage: React.FC = () => {
         const payload = {
             ngayKiemTra: ngayKiemTra.format("YYYY-MM-DD"),
             bepAnId,
+            nhaThauId,
             phongBanId,
             ketLuanGhiChu,
             chiTiet,
@@ -436,7 +466,6 @@ const Phieu1FormPage: React.FC = () => {
     const tenBepAnHienTai = bepAnId
         ? danhSachBepAn.find((b: BepAnModel) => b.id === bepAnId)?.ten
         : "........................";
-    const nhaThauId = bepAnId ? nhaThauCuaBepAn(bepAnId) : undefined;
     const tenNhaThauHienTai = nhaThauId
         ? tenNhaThau(nhaThauId)
         : "........................";
@@ -512,12 +541,13 @@ const Phieu1FormPage: React.FC = () => {
 
             {/* 2. FORM THÔNG TIN NHẬP LIỆU (NO-PRINT) */}
             <div className="no-print mb-4">
-                <Card title="Thông tin nhập liệu" size="small">
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card size="small">
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                         <div>
-                            <div className="mb-1 font-medium">Ngày kiểm tra</div>
+                            <div className="mb-1 text-xs font-medium">Ngày kiểm tra</div>
                             <DatePicker
                                 className="w-full"
+                                size="small"
                                 value={ngayKiemTra}
                                 format="DD/MM/YYYY"
                                 disabled={!coTheSua}
@@ -526,15 +556,22 @@ const Phieu1FormPage: React.FC = () => {
                         </div>
 
                         <div>
-                            <div className="mb-1 font-medium">Bếp ăn</div>
+                            <div className="mb-1 text-xs font-medium">Bếp ăn</div>
                             <Select
                                 className="w-full"
+                                size="small"
                                 placeholder="-- Chọn bếp ăn --"
                                 showSearch
                                 optionFilterProp="children"
                                 disabled={!coTheSua}
                                 value={bepAnId}
-                                onChange={v => setBepAnId(v)}
+                                onChange={v => {
+                                    setBepAnId(v);
+                                    // Gợi ý nhà thầu theo bếp ăn nếu chưa chọn — chỉ là gợi ý
+                                    // mặc định, người lập phiếu vẫn có thể đổi lại (bếp ăn có
+                                    // thể đổi nhà thầu vận hành qua các đợt hợp đồng khác nhau).
+                                    if (!nhaThauId) setNhaThauId(nhaThauCuaBepAn(v));
+                                }}
                             >
                                 {danhSachBepAn.map((b: BepAnModel) => (
                                     <Select.Option key={b.id} value={b.id}>
@@ -545,9 +582,30 @@ const Phieu1FormPage: React.FC = () => {
                         </div>
 
                         <div>
-                            <div className="mb-1 font-medium">Phòng ban lập phiếu</div>
+                            <div className="mb-1 text-xs font-medium">Nhà thầu</div>
                             <Select
                                 className="w-full"
+                                size="small"
+                                placeholder="-- Chọn nhà thầu --"
+                                showSearch
+                                optionFilterProp="children"
+                                disabled={!coTheSua}
+                                value={nhaThauId}
+                                onChange={v => setNhaThauId(v)}
+                            >
+                                {danhSachNhaThau.map((nt: NhaThauModel) => (
+                                    <Select.Option key={nt.id} value={nt.id}>
+                                        {nt.ten}
+                                    </Select.Option>
+                                ))}
+                            </Select>
+                        </div>
+
+                        <div>
+                            <div className="mb-1 text-xs font-medium">Phòng ban lập phiếu</div>
+                            <Select
+                                className="w-full"
+                                size="small"
                                 placeholder="-- Chọn phòng ban --"
                                 disabled={!coTheSua}
                                 value={phongBanId}
@@ -568,6 +626,8 @@ const Phieu1FormPage: React.FC = () => {
             <div className="phieu-a4">
                 {/* Header in */}
                 <PhieuHeader
+                    maPhieu="PHIEU1"
+                    soHieu={phieu?.soHieu}
                     title="PHIẾU KIỂM TRA CÔNG TÁC VSATTP"
                     subtitle={`TẠI BẾP ĂN ${tenBepAnHienTai}`}
                     infoItems={[
@@ -580,6 +640,7 @@ const Phieu1FormPage: React.FC = () => {
                 />
 
                 {/* Bảng Checklist */}
+                <div className="phieu-thuc-trang-title">1. Thực trạng đánh giá</div>
                 <table className="phieu-table">
                     <thead>
                         <tr>
@@ -599,7 +660,7 @@ const Phieu1FormPage: React.FC = () => {
                                     </td>
                                 </tr>
                                 {dong.map((item: DongChecklist, itemIndex: number) => {
-                                    const tieuChiTen = tenTieuChi(item.tieuChiId);
+                                    const tieuChiTen = item.tenTieuChiSnapshot ?? tenTieuChi(item.tieuChiId);
                                     return (
                                         <tr key={item.thuTu} className="dong-tieu-chi">
                                             <td className="o-tt">
@@ -684,7 +745,7 @@ const Phieu1FormPage: React.FC = () => {
                                     <td colSpan={5}>Các nội dung khác</td>
                                 </tr>
                                 {dongKhongNhom.map((item, index) => {
-                                    const tieuChiTen = tenTieuChi(item.tieuChiId);
+                                    const tieuChiTen = item.tenTieuChiSnapshot ?? tenTieuChi(item.tieuChiId);
                                     return (
                                         <tr key={item.thuTu}>
                                             <td className="o-tt">{index + 1}</td>
@@ -803,44 +864,13 @@ const Phieu1FormPage: React.FC = () => {
                                         : "--"}
                                 </td>
                                 <td className="kl-ghi-chu">
+                                    {/* Xem trước gọn trong bảng — luôn đồng bộ theo state, soạn
+                                        thật ở khung TinyMCE bên dưới (mục "Ghi chú:"), không sửa
+                                        trực tiếp ở đây để chỉ có 1 khung soạn duy nhất. */}
                                     {chuaNoiDungHtml(ketLuanGhiChu) ? (
-                                        <div className="flex items-start justify-between gap-1">
-                                            <GhiChuHtml
-                                                className="ghi-chu-rich-preview flex-1"
-                                                html={ketLuanGhiChu}
-                                            />
-                                            {coTheSua && (
-                                                <Tooltip title="Sửa ghi chú / ảnh">
-                                                    <Button
-                                                        className="no-print"
-                                                        size="small"
-                                                        icon={<FaEdit />}
-                                                        onClick={moModalGhiChuKetLuan}
-                                                    />
-                                                </Tooltip>
-                                            )}
-                                        </div>
-                                    ) : coTheSua ? (
-                                        <div className="flex items-center gap-1">
-                                            <Input.TextArea
-                                                bordered={false}
-                                                autoSize={{ minRows: 1, maxRows: 3 }}
-                                                value={ketLuanGhiChu}
-                                                onChange={e =>
-                                                    setKetLuanGhiChu(e.target.value)
-                                                }
-                                            />
-                                            <Tooltip title="Chèn ảnh / Soạn chi tiết">
-                                                <Button
-                                                    className="no-print"
-                                                    size="small"
-                                                    icon={<FaImage />}
-                                                    onClick={moModalGhiChuKetLuan}
-                                                />
-                                            </Tooltip>
-                                        </div>
+                                        <GhiChuHtml className="ghi-chu-rich-preview" html={ketLuanGhiChu} />
                                     ) : (
-                                        ketLuanGhiChu
+                                        ketLuanGhiChu || "--"
                                     )}
                                 </td>
                             </tr>
@@ -862,57 +892,28 @@ const Phieu1FormPage: React.FC = () => {
                         </div>
                     </div>
 
-                    <div className="ket-luan-ghi-chu">
-                        <strong>Ghi chú:</strong>
-                        {chuaNoiDungHtml(ketLuanGhiChu) ? (
-                            <div className="flex-1">
-                                <GhiChuHtml className="ghi-chu-print" html={ketLuanGhiChu} />
-                                {coTheSua && (
-                                    <Button
-                                        className="no-print mt-1"
-                                        size="small"
-                                        icon={<FaEdit />}
-                                        onClick={moModalGhiChuKetLuan}
-                                    >
-                                        Chỉnh sửa ghi chú & hình ảnh
-                                    </Button>
-                                )}
-                            </div>
-                        ) : coTheSua ? (
-                            <div className="flex-1 no-print">
-                                <Input.TextArea
-                                    autoSize={{ minRows: 2, maxRows: 4 }}
-                                    value={ketLuanGhiChu}
-                                    onChange={e => setKetLuanGhiChu(e.target.value)}
-                                />
-                                <div className="mt-1">
-                                    <Button
-                                        size="small"
-                                        icon={<FaImage />}
-                                        onClick={moModalGhiChuKetLuan}
-                                    >
-                                        Chèn hình ảnh / Soạn chi tiết
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="ghi-chu-print">{ketLuanGhiChu}</div>
-                        )}
-                    </div>
+                    {/* Khung soạn Ghi chú Kết luận — duy nhất, hiện thẳng TinyMCE,
+                        không qua nút mở modal. Chỉ hiện khi còn sửa được; xem trước
+                        (đọc + in) đã có ở ô "Ghi chú" trong bảng Kết luận phía trên,
+                        đồng bộ sống theo state nên không cần lặp lại ở đây. */}
+                    {coTheSua && (
+                        <div className="ket-luan-ghi-chu no-print">
+                            <strong>Ghi chú:</strong>
+                            <TinyMceInline
+                                className="flex-1"
+                                value={ketLuanGhiChu}
+                                onChange={setKetLuanGhiChu}
+                            />
+                        </div>
+                    )}
                 </div>
 
-                {/* Khối Chữ ký */}
+                {/* Khối Chữ ký — kiêm luôn chọn người ký / ký / từ chối (xem
+                    huongdanquanlytaikhoan.md mục 5.2) */}
                 <PhieuSignatures
-                    columns={[
-                        {
-                            title: "ĐẠI DIỆN NHÀ THẦU",
-                            subTitle: "(Ký, ghi rõ họ tên)",
-                        },
-                        {
-                            title: "NGƯỜI ĐÁNH GIÁ",
-                            subTitle: "(Ký, ghi rõ họ tên)",
-                        },
-                    ]}
+                    loaiDoiTuong="PHIEU1"
+                    doiTuongId={phieuId}
+                    onDaDongBo={() => phieuId && dongBoTrangThaiPhieu1(phieuId)}
                 />
             </div>
 
@@ -927,17 +928,6 @@ const Phieu1FormPage: React.FC = () => {
                 onGuiKy={xuLyGuiKy}
                 onXoa={xuLyXoaPhieu}
             />
-
-            {/* 5. TIẾN ĐỘ KÝ */}
-            {!laTaoMoi && phieuId && phieu && phieu.trangThai !== "NHAP" && (
-                <div className="no-print">
-                    <TienDoKy
-                        loaiDoiTuong="PHIEU1"
-                        doiTuongId={phieuId}
-                        onDaDongBo={() => dongBoTrangThaiPhieu1(phieuId)}
-                    />
-                </div>
-            )}
 
             {/* 6. MODAL SOẠN GHI CHÚ & CHÈN HÌNH ẢNH (TINYMCE) */}
             <TinyMceModal

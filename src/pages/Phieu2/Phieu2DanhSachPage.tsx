@@ -22,8 +22,13 @@ const Phieu2DanhSachPage: React.FC = () => {
     const [locNam, setLocNam] = useState<number | undefined>(undefined);
     const [locTrangThai, setLocTrangThai] = useState<string | undefined>(undefined);
 
+    // Nhà thầu chỉ xem/lọc được đúng nhà thầu của chính mình — không cho chọn
+    // nhà thầu khác (backend cũng đã ép lọc theo claim nha_thau_id bất kể
+    // tham số gửi lên, xem Phieu2Controller/GetNhaThauId()).
+    const laTaiKhoanNhaThau = !!authV2.nguoiDung?.nhaThauId;
+
     const { data: danhSachPhieu = [], isFetching } = useDanhSachPhieu2Query({
-        nhaThauId: locNhaThauId,
+        nhaThauId: laTaiKhoanNhaThau ? authV2.nguoiDung?.nhaThauId : locNhaThauId,
         bepAnId: locBepAnId,
         thang: locThang,
         nam: locNam,
@@ -79,9 +84,9 @@ const Phieu2DanhSachPage: React.FC = () => {
         },
         {
             title: 'Nhà ăn',
-            dataIndex: 'nhaAnId',
-            key: 'nhaAnId',
-            render: (id) => tenNhaAn(id),
+            dataIndex: 'nhaAnIds',
+            key: 'nhaAnIds',
+            render: (ids?: number[]) => (ids ?? []).map(id => tenNhaAn(id)).filter(Boolean).join(', '),
         },
         {
             title: 'Địa điểm',
@@ -101,26 +106,28 @@ const Phieu2DanhSachPage: React.FC = () => {
         <PhieuListHeader
             icon={<FaUtensils />}
             title="Phiếu đánh giá chất lượng dịch vụ suất ăn"
-            actionLabel="Lập phiếu mới"
-            onAction={() => navigator("/phieu2/moi")}
+            actionLabel={laTaiKhoanNhaThau ? undefined : "Lập phiếu mới"}
+            onAction={laTaiKhoanNhaThau ? undefined : () => navigator("/phieu2/moi")}
         />
 
         <PhieuFilterBar>
+            {!laTaiKhoanNhaThau && (
+                <Select
+                    className="w-full sm:w-[220px]"
+                    allowClear
+                    placeholder="-- Lọc theo nhà thầu --"
+                    showSearch
+                    optionFilterProp="children"
+                    value={locNhaThauId}
+                    onChange={(value) => setLocNhaThauId(value)}
+                >
+                    {danhSachNhaThau.map(nt => (
+                        <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                    ))}
+                </Select>
+            )}
             <Select
-                className="w-[220px]"
-                allowClear
-                placeholder="-- Lọc theo nhà thầu --"
-                showSearch
-                optionFilterProp="children"
-                value={locNhaThauId}
-                onChange={(value) => setLocNhaThauId(value)}
-            >
-                {danhSachNhaThau.map(nt => (
-                    <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
-                ))}
-            </Select>
-            <Select
-                className="w-[220px]"
+                className="w-full sm:w-[220px]"
                 allowClear
                 placeholder="-- Lọc theo bếp ăn --"
                 showSearch
@@ -133,7 +140,7 @@ const Phieu2DanhSachPage: React.FC = () => {
                 ))}
             </Select>
             <Select
-                className="w-[140px]"
+                className="w-full sm:w-[140px]"
                 allowClear
                 placeholder="-- Tháng --"
                 value={locThang}
@@ -144,7 +151,7 @@ const Phieu2DanhSachPage: React.FC = () => {
                 ))}
             </Select>
             <Select
-                className="w-[120px]"
+                className="w-full sm:w-[120px]"
                 allowClear
                 placeholder="-- Năm --"
                 value={locNam}
@@ -155,7 +162,7 @@ const Phieu2DanhSachPage: React.FC = () => {
                 ))}
             </Select>
             <Select
-                className="w-[200px]"
+                className="w-full sm:w-[200px]"
                 allowClear
                 placeholder="-- Lọc theo trạng thái --"
                 value={locTrangThai}

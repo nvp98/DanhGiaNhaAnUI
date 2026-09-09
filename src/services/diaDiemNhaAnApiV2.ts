@@ -7,13 +7,44 @@ import NhaAnModel from '../models/NhaAnModel';
 // 2026-08-27, xem 02. Phantich/modules/Phieu2_DanhGiaSuatAn.md). Gọi qua
 // apiSliceV2 (base LinkServerV2) vì LocationController nằm trong cùng
 // DanhGiaAPI với module Phiếu 1-4, khác domain cứng ở acctions/LinkServer.tsx
-// mà trang HomePage/AdminPage cũ đang dùng.
+// mà trang HomePage cũ đang dùng.
+export interface DiaDiemNhaAnRequestV2 {
+    diaDiem: string;
+    codeDiemAn?: string;
+    isActive: boolean;
+}
+
+export interface DanhSachDiaDiemNhaAnParamsV2 {
+    isActive?: boolean;
+}
+
 export const diaDiemNhaAnApiV2 = apiSliceV2.injectEndpoints({
     endpoints: (builder) => ({
-        danhSachDiaDiemNhaAn: builder.query<NhaAnModel[], void>({
-            query: () => '/Location',
+        danhSachDiaDiemNhaAn: builder.query<NhaAnModel[], DanhSachDiaDiemNhaAnParamsV2 | void>({
+            query: (params) => ({ url: '/Location', params: params ?? {} }),
+            providesTags: (result) =>
+                result
+                    ? [...result.map(({ id }) => ({ type: 'DiaDiemNhaAn' as const, id })), { type: 'DiaDiemNhaAn' as const, id: 'LIST' }]
+                    : [{ type: 'DiaDiemNhaAn' as const, id: 'LIST' }],
+        }),
+        themDiaDiemNhaAn: builder.mutation<NhaAnModel, DiaDiemNhaAnRequestV2>({
+            query: (body) => ({ url: '/Location', method: 'POST', body }),
+            invalidatesTags: [{ type: 'DiaDiemNhaAn', id: 'LIST' }],
+        }),
+        suaDiaDiemNhaAn: builder.mutation<NhaAnModel, { id: number; body: DiaDiemNhaAnRequestV2 }>({
+            query: ({ id, body }) => ({ url: `/Location/${id}`, method: 'PUT', body }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'DiaDiemNhaAn', id }, { type: 'DiaDiemNhaAn', id: 'LIST' }],
+        }),
+        xoaDiaDiemNhaAn: builder.mutation<{ message: string }, number>({
+            query: (id) => ({ url: `/Location/${id}`, method: 'DELETE' }),
+            invalidatesTags: (_result, _error, id) => [{ type: 'DiaDiemNhaAn', id }, { type: 'DiaDiemNhaAn', id: 'LIST' }],
         }),
     }),
 });
 
-export const { useDanhSachDiaDiemNhaAnQuery } = diaDiemNhaAnApiV2;
+export const {
+    useDanhSachDiaDiemNhaAnQuery,
+    useThemDiaDiemNhaAnMutation,
+    useSuaDiaDiemNhaAnMutation,
+    useXoaDiaDiemNhaAnMutation,
+} = diaDiemNhaAnApiV2;

@@ -1,7 +1,7 @@
-import { Button, InputNumber, Select, Tag, Tooltip } from "antd";
+import { Button, InputNumber, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FaEdit, FaImage, FaSyncAlt } from "react-icons/fa";
+import { FaFileWord } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -11,25 +11,20 @@ import {
     PhieuActions,
     PhieuHeader,
     PhieuInputCard,
-    PhieuSignatures,
     PhieuToolbar,
-    TienDoKy,
-    TinyMceModal,
+    TinyMceInline,
 } from "../../components/phieu";
 
 import NhaThauModel from "../../models/NhaThauModel";
 import PhongBanModel from "../../models/PhongBanModel";
 import { Phieu3Bang1DongModel, Phieu3Bang2DongModel } from "../../models/Phieu3ResponseModel";
 
+import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
 import { useDanhSachPhieu1Query } from "../../services/phieu1Api";
 import { useDanhSachPhieu2Query } from "../../services/phieu2Api";
 import {
-    Phieu3Bang1DongRequest,
-    Phieu3Bang2DongRequest,
     useChiTietPhieu3Query,
-    useDongBoTrangThaiPhieu3Mutation,
-    useGuiKyPhieu3Mutation,
     usePhanHoiYKienNhaThauPhieu3Mutation,
     useSuaPhieu3Mutation,
     useThemPhieu3Mutation,
@@ -40,23 +35,35 @@ import { useDanhSachPhongBanQuery } from "../../services/phongBanApiV2";
 
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
+import xuatWordPhieu3 from "../../utils/xuatWordPhieu3";
 
 import "./Phieu3FormPage.scss";
 
-const MA_TIEU_CHI_BANG2 = ["TC1", "TC2", "TC3", "TC4", "TC5", "TC6"];
+// Cấu hình cột kiểu "BangCoDinhConfig" (xem PHIEU4_BANG1_CONFIG/PHIEU4_BANG2_CONFIG
+// ở Phieu4FormPage.tsx) — Ở Phiếu 4, TRỤ CỘT cố định là nhà thầu (động, lấy từ dữ
+// liệu) nên phần khai báo config nằm ở DÒNG. Ở Phiếu 3 thì ngược lại: DÒNG lấy từ
+// dữ liệu (bang1/bang2 — theo maDong/phongBanId), còn CỘT (điểm 1-5, TC1-6) mới là
+// phần cố định — nên khai báo config ở CỘT, dùng chung để render cả header lẫn ô
+// dữ liệu, thay vì tách rời hằng số mã cột + object tra tên như trước.
+const BANG1_COT_DIEM: { key: "diem1" | "diem2" | "diem3" | "diem4" | "diem5"; label: string }[] = [
+    { key: "diem1", label: "1-Rất không hài lòng" },
+    { key: "diem2", label: "2-Không hài lòng" },
+    { key: "diem3", label: "3-Bình thường" },
+    { key: "diem4", label: "4-Hài lòng" },
+    { key: "diem5", label: "5-Rất hài lòng" },
+];
 
 // Tên đầy đủ 6 tiêu chí Bảng 2 — khớp thứ tự với Phiếu 2 (VSATTP, định lượng thực đơn,
 // thái độ phối hợp, điều khoản khác) + 2 tiêu chí riêng của Bảng 2 (đa dạng thực đơn,
 // phản hồi sự cố). Chỉ là nhãn hiển thị — MaTieuChi lưu DB vẫn là TC1..TC6.
-const TEN_TIEU_CHI_BANG2: Record<string, string> = {
-    TC1: "Tuân thủ đúng quy định về vệ sinh an toàn thực phẩm",
-    TC2: "Tuân thủ định lượng theo thực đơn đã được phê duyệt",
-    TC3: "Đa dạng thực đơn",
-    TC4: "Tuân thủ hợp đồng, bản cam kết, quy trình báo cáo",
-    TC5: "Thái độ phối hợp, cầu thị cải tiến",
-    TC6: "Phản hồi sự cố, xử lý khiếu nại nhanh chóng",
-};
-const tenTieuChiBang2 = (ma: string) => TEN_TIEU_CHI_BANG2[ma] ?? ma;
+const BANG2_COT_TIEU_CHI: { key: string; label: string }[] = [
+    { key: "TC1", label: "Tuân thủ đúng quy định về vệ sinh an toàn thực phẩm" },
+    { key: "TC2", label: "Tuân thủ định lượng theo thực đơn đã được phê duyệt" },
+    { key: "TC3", label: "Đa dạng thực đơn" },
+    { key: "TC4", label: "Tuân thủ hợp đồng, bản cam kết, quy trình báo cáo" },
+    { key: "TC5", label: "Thái độ phối hợp, cầu thị cải tiến" },
+    { key: "TC6", label: "Phản hồi sự cố, xử lý khiếu nại nhanh chóng" },
+];
 
 // Nối danh sách chuỗi kiểu "A, B và C" (dùng cho danh sách ngày kiểm tra)
 const noiVaCuoi = (items: string[]): string => {
@@ -65,16 +72,11 @@ const noiVaCuoi = (items: string[]): string => {
     return `${items.slice(0, -1).join(", ")} và ${items[items.length - 1]}`;
 };
 
-const chuaNoiDungHtml = (text?: string): boolean => {
-    if (!text) return false;
-    return /<[a-z][\s\S]*>/i.test(text);
-};
-
 const tenDongBang1 = (maDong: string) => {
     switch (maDong) {
-        case "LUOT_CBNV_THAM_GIA": return "Lượt CBNV tham gia đánh giá";
-        case "TONG_SUAT_AN": return "Tổng suất ăn tại chỗ";
-        case "TY_LE_PHAN_TRAM": return "Tỷ lệ % tiêu chí đạt";
+        case "LUOT_CBNV_THAM_GIA": return "Số lượt CBNV tham gia đánh giá";
+        case "TONG_SUAT_AN": return "Tổng số lượng suất ăn tại chỗ tại các vị trí đánh giá";
+        case "TY_LE_PHAN_TRAM": return "Tỷ lệ % theo tiêu chí đánh giá";
         default: return maDong;
     }
 };
@@ -98,14 +100,19 @@ const Phieu3FormPage: React.FC = () => {
     );
     const { data: danhSachNhaThau = [] } = useDanhSachNhaThauQuery();
     const { data: danhSachPhongBan = [] } = useDanhSachPhongBanQuery();
+    // Tiến độ ký — chỉ còn dùng để in trạng thái/ngày ký vào bảng chữ ký khi
+    // xuất Word (xem xuLyXuatWord); phần mềm không còn luồng ký/duyệt nội bộ,
+    // việc ký diễn ra ngoài phần mềm trên bản in.
+    const { data: tienDoKy = [] } = useTienDoKyQuery(
+        { loaiDoiTuong: "PHIEU3", doiTuongId: phieuId! },
+        { skip: laTaoMoi }
+    );
 
     const [themPhieu3, { isLoading: dangThem }] = useThemPhieu3Mutation();
-    const [suaPhieu3, { isLoading: dangSua }] = useSuaPhieu3Mutation();
     const [tinhLaiPhieu3, { isLoading: dangTinhLai }] = useTinhLaiPhieu3Mutation();
     const [xoaPhieu3] = useXoaPhieu3Mutation();
-    const [guiKyPhieu3, { isLoading: dangGuiKy }] = useGuiKyPhieu3Mutation();
-    const [dongBoTrangThaiPhieu3] = useDongBoTrangThaiPhieu3Mutation();
-    const [phanHoiYKienNhaThau] = usePhanHoiYKienNhaThauPhieu3Mutation();
+    const [phanHoiYKienNhaThau, { isLoading: dangLuuYKien }] = usePhanHoiYKienNhaThauPhieu3Mutation();
+    const [suaPhieu3, { isLoading: dangLuuGiaTri }] = useSuaPhieu3Mutation();
 
     // ============================================================
     // LOCAL STATES
@@ -119,7 +126,11 @@ const Phieu3FormPage: React.FC = () => {
     const [daKhoiTao, setDaKhoiTao] = useState(false);
 
     const [yKien, setYKien] = useState("");
-    const [modalYKienMo, setModalYKienMo] = useState(false);
+    const [dangXuatWord, setDangXuatWord] = useState(false);
+    // Ô "Đa dạng thực đơn" (TC3, Bảng 2) — không có nguồn tự động ở CẢ 2 dòng
+    // (P.ĐN lẫn P.ATMT, xem Phieu3Service.TinhLaiBang2Async) nên vẫn cho nhập
+    // tay, khóa theo PhongBanId, chỉ chứa ô người dùng vừa sửa (chưa lưu).
+    const [suaDaDangThucDon, setSuaDaDangThucDon] = useState<Record<number, number | null>>({});
 
     // Danh sách Phiếu 1 / Phiếu 2 trong tháng — dùng để tự tổng hợp mục "1. Căn cứ đánh giá"
     const dauThang = dayjs(`${nam}-${String(thang).padStart(2, "0")}-01`).startOf("month");
@@ -144,6 +155,7 @@ const Phieu3FormPage: React.FC = () => {
 
     useEffect(() => {
         setDaKhoiTao(false);
+        setSuaDaDangThucDon({});
     }, [id]);
 
     useEffect(() => {
@@ -177,10 +189,11 @@ const Phieu3FormPage: React.FC = () => {
         idNt ? danhSachNhaThau.find((nt: NhaThauModel) => nt.id === idNt)?.ten ?? "" : "";
     const tenPhongBan = (idPb: number) =>
         danhSachPhongBan.find((pb: PhongBanModel) => pb.id === idPb)?.ten ?? `Phòng ban #${idPb}`;
-
     // "1. Căn cứ đánh giá": tự tổng hợp từ các Phiếu 2 (Bảng đánh giá) và Phiếu 1
     // (phiếu kiểm tra VSATTP) đã lập trong tháng/nhà thầu của báo cáo này.
-    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay.map(p => p.soHieu);
+    // Chỉ lấy phần số thứ tự (VD "001" từ soHieu "001/2026/PĐGCLDVSA"), không
+    // lặp lại cả chuỗi số hiệu đầy đủ (đã có sẵn "Bảng đánh giá số" dẫn trước).
+    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay.map(p => p.soHieu.split("/")[0]);
 
     const ngayKiemTraTheoPhongBan = new Map<number, Set<string>>();
     danhSachPhieu1ThangNay.forEach(p => {
@@ -198,30 +211,7 @@ const Phieu3FormPage: React.FC = () => {
     }));
 
     // ============================================================
-    // CẬP NHẬT Ô BẢNG 1 / BẢNG 2 (state cục bộ)
-    // ============================================================
-
-    const capNhatOBang1 = (maDong: string, cot: keyof Phieu3Bang1DongModel, giaTri: number | null) => {
-        setBang1(ds => ds.map(d => (d.maDong === maDong ? { ...d, [cot]: giaTri ?? undefined } : d)));
-    };
-
-    const capNhatOBang2 = (dongId: number, maTieuChi: string, giaTri: number | null) => {
-        setBang2(ds =>
-            ds.map(d =>
-                d.id !== dongId
-                    ? d
-                    : {
-                        ...d,
-                        giaTri: d.giaTri.map(g =>
-                            g.maTieuChi === maTieuChi ? { ...g, giaTri: giaTri ?? undefined } : g
-                        ),
-                    }
-            )
-        );
-    };
-
-    // ============================================================
-    // LƯU / TẠO MỚI / TÍNH LẠI
+    // TẠO MỚI / LƯU Ý KIẾN / TÍNH LẠI
     // ============================================================
 
     const xuLyTaoMoi = async () => {
@@ -238,36 +228,46 @@ const Phieu3FormPage: React.FC = () => {
         }
     };
 
-    const luuPhieu = async () => {
+    // Lưu "Ý kiến của BP.QLTT" + ô "Đa dạng thực đơn" (TC3, Bảng 2) nếu có
+    // sửa — 2 trường NHẬP TAY duy nhất còn lại trên phiếu (Bảng 1/2 phần còn
+    // lại luôn lấy từ hệ thống, xem "Làm mới"), gộp chung 1 nút "Lưu thay đổi".
+    const luuYKien = async () => {
         if (laTaoMoi) {
             await xuLyTaoMoi();
             return;
         }
-        const bang1Req: Phieu3Bang1DongRequest[] = bang1.map(d => ({
-            maDong: d.maDong,
-            diem1: d.diem1 ?? null,
-            diem2: d.diem2 ?? null,
-            diem3: d.diem3 ?? null,
-            diem4: d.diem4 ?? null,
-            diem5: d.diem5 ?? null,
-            tong: d.tong ?? null,
-        }));
-        const bang2Req: Phieu3Bang2DongRequest[] = bang2.map(d => ({
-            phongBanId: d.phongBanId,
-            giaTri: d.giaTri.map(g => ({ maTieuChi: g.maTieuChi, giaTri: g.giaTri ?? null })),
-        }));
-
         try {
-            await suaPhieu3({ id: phieuId!, body: { bang1: bang1Req, bang2: bang2Req } }).unwrap();
-            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lưu báo cáo", messageNotify: "" }));
+            await phanHoiYKienNhaThau({ id: phieuId!, body: { yKien } }).unwrap();
+
+            if (Object.keys(suaDaDangThucDon).length > 0) {
+                const ketQua = await suaPhieu3({
+                    id: phieuId!,
+                    body: {
+                        bang1: [],
+                        bang2: Object.entries(suaDaDangThucDon).map(([phongBanId, giaTri]) => ({
+                            phongBanId: Number(phongBanId),
+                            giaTri: [{ maTieuChi: "TC3", giaTri: giaTri ?? undefined }],
+                        })),
+                    },
+                }).unwrap();
+                // Cập nhật thẳng từ response — bang1/bang2 là state cục bộ,
+                // chỉ đồng bộ từ chiTietPhieu 1 lần lúc khởi tạo (xem daKhoiTao),
+                // không tự refetch lại khi RTK Query invalidate tag.
+                setBang2(ketQua.bang2);
+                setSuaDaDangThucDon({});
+            }
+
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lưu thay đổi", messageNotify: "" }));
         } catch (error: any) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Lưu báo cáo thất bại", messageNotify: "" }));
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Lưu thất bại", messageNotify: "" }));
         }
     };
 
     const xuLyTinhLai = async () => {
         try {
-            await tinhLaiPhieu3(phieuId!).unwrap();
+            const ketQua = await tinhLaiPhieu3(phieuId!).unwrap();
+            setBang1(ketQua.bang1);
+            setBang2(ketQua.bang2);
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã tính lại Bảng 1 (giữ nguyên ô đã sửa tay)", messageNotify: "" }));
         } catch (error: any) {
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Tính lại thất bại", messageNotify: "" }));
@@ -284,68 +284,123 @@ const Phieu3FormPage: React.FC = () => {
         }
     };
 
-    const xuLyGuiKy = async () => {
+    const xuLyXuatWord = async () => {
+        setDangXuatWord(true);
         try {
-            await luuPhieu();
-            await guiKyPhieu3(phieuId!).unwrap();
-            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã gửi ký", messageNotify: "" }));
+            await xuatWordPhieu3({
+                soHieu: phieu?.soHieu,
+                ngayLap: phieu?.ngayTao,
+                tenNhaThau: tenNhaThau(nhaThauId),
+                thang,
+                nam,
+                dsSoHieuPhieu2,
+                canCuPhieu1: canCuPhieu1.map(({ phongBanId, danhSachNgay }) => ({
+                    tenPhongBan: tenPhongBan(phongBanId),
+                    danhSachNgay,
+                })),
+                bang1,
+                bang2: bang2.map(dong => ({
+                    tenPhongBan: tenPhongBan(dong.phongBanId),
+                    giaTriTheoTieuChi: BANG2_COT_TIEU_CHI.map(cot =>
+                        // TC3 đang sửa dở (chưa lưu) vẫn phải xuất đúng giá trị mới gõ.
+                        cot.key === "TC3" && dong.phongBanId in suaDaDangThucDon
+                            ? suaDaDangThucDon[dong.phongBanId] ?? undefined
+                            : dong.giaTri.find(g => g.maTieuChi === cot.key)?.giaTri
+                    ),
+                })),
+                bang2CotTieuChi: BANG2_COT_TIEU_CHI.map(cot => cot.label),
+                yKienHtml: yKien,
+                chuKy: tienDoKy.map(b => ({
+                    tenBuoc: b.tenBuoc,
+                    trangThai: b.trangThai,
+                    ghiChu: b.ghiChu,
+                    ngayKy: b.ngayKy,
+                })),
+            });
         } catch (error: any) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Gửi ký thất bại", messageNotify: "" }));
-        }
-    };
-
-    const xuLyLuuYKien = async (html?: string) => {
-        if (!phieuId) return;
-        try {
-            await phanHoiYKienNhaThau({ id: phieuId, body: { yKien: html ?? yKien } }).unwrap();
-            if (html !== undefined) setYKien(html);
-            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lưu ý kiến phản hồi nhà thầu", messageNotify: "" }));
-        } catch (error: any) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Lưu ý kiến thất bại", messageNotify: "" }));
+            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Word thất bại", messageNotify: "" }));
         } finally {
-            setModalYKienMo(false);
+            setDangXuatWord(false);
         }
     };
 
-    // Ô Bảng 1: render input hoặc giá trị tĩnh + badge "đã sửa tay"
+    // Định dạng 1 giá trị Bảng 1 theo đúng kiểu hiển thị của dòng (số nguyên
+    // hoặc % có 2 số thập phân với dòng TY_LE_PHAN_TRAM) — dùng chung cho ô
+    // và tooltip so sánh giá trị hệ thống / đã sửa tay.
+    const dinhDangGiaTriBang1 = (dong: Phieu3Bang1DongModel, giaTri: number) =>
+        dong.maDong === "TY_LE_PHAN_TRAM"
+            ? `${giaTri.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
+            : giaTri.toLocaleString("vi-VN");
+
+    // Ô Bảng 1: render input hoặc giá trị tĩnh. Nếu ô đã từng bị sửa tay
+    // (khác giá trị hệ thống tự tính) thì tô vàng nhạt + hover xem giá trị
+    // hệ thống gốc so với giá trị đã sửa (thay vì 1 tag "Đã sửa tay" chung
+    // chung cho cả dòng — trước đây không biết ô nào trong 5 ô đã bị sửa).
     const renderOBang1 = (dong: Phieu3Bang1DongModel, cot: "diem1" | "diem2" | "diem3" | "diem4" | "diem5" | "tong") => {
         const giaTri = dong[cot];
-        if (coTheSua) {
-            return (
-                <InputNumber
-                    className="o-input-so"
-                    bordered={false}
-                    value={giaTri ?? null}
-                    onChange={v => capNhatOBang1(dong.maDong, cot, v)}
-                />
-            );
-        }
-        if (giaTri === undefined || giaTri === null) return <span>--</span>;
-        if (dong.maDong === "TY_LE_PHAN_TRAM") {
-            return (
-                <span>
-                    {Number(giaTri).toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%
-                </span>
-            );
-        }
-        return <span>{Number(giaTri).toLocaleString("vi-VN")}</span>;
+        const daSuaTay = dong.truongDaSuaTay?.includes(cot) ?? false;
+        const giaTriHeThong = dong[`${cot}HeThong` as const];
+
+        const noiDung =
+            giaTri === undefined || giaTri === null ? "--" : dinhDangGiaTriBang1(dong, giaTri);
+        const span = <span className={daSuaTay ? "o-so-sua-tay" : undefined}>{noiDung}</span>;
+        // Vẫn giữ hiển thị "đã sửa tay" (từ lịch sử chỉnh sửa trước đây, khi
+        // Bảng 1 còn cho nhập tay) để đối chiếu — bản thân ô giờ chỉ hiển thị,
+        // không còn sửa được nữa (số liệu lấy hoàn toàn từ hệ thống).
+        if (!daSuaTay) return span;
+        return (
+            <Tooltip
+                title={
+                    <>
+                        Hệ thống tính: {giaTriHeThong !== undefined && giaTriHeThong !== null ? dinhDangGiaTriBang1(dong, giaTriHeThong) : "--"}
+                        <br />
+                        Đã sửa tay (trước đây): {noiDung}
+                    </>
+                }
+            >
+                {span}
+            </Tooltip>
+        );
     };
+
+    // P.ĐN — theo đúng quy ước backend (Phieu3Service dùng PhongBan.Ma ==
+    // "PDN" để phân biệt dòng, xem MaPhongBanBang2), không dựa vào thứ tự
+    // dòng trong mảng (dù hiện tại luôn là dòng đầu tiên).
+    const laPhongDoiNgoai = (phongBanId: number) =>
+        danhSachPhongBan.find((pb: PhongBanModel) => pb.id === phongBanId)?.ma === "PDN";
 
     const renderOBang2 = (dong: Phieu3Bang2DongModel, maTieuChi: string) => {
         const oGiaTri = dong.giaTri.find(g => g.maTieuChi === maTieuChi);
-        if (coTheSua) {
+
+        // TC3 "Đa dạng thực đơn" — không có nguồn tự động, nhưng CHỈ cho nhập
+        // tay ở dòng P.ĐN theo yêu cầu (P.ATMT vẫn chỉ hiển thị, chờ xác nhận
+        // thêm nghiệp vụ).
+        if (coTheSua && maTieuChi === "TC3" && laPhongDoiNgoai(dong.phongBanId)) {
+            const giaTriDangSua = dong.phongBanId in suaDaDangThucDon
+                ? suaDaDangThucDon[dong.phongBanId]
+                : oGiaTri?.giaTri ?? null;
+            const hienThi = giaTriDangSua !== null && giaTriDangSua !== undefined
+                ? Number(giaTriDangSua).toLocaleString("vi-VN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                : "--";
             return (
-                <InputNumber
-                    className="o-input-so"
-                    bordered={false}
-                    value={oGiaTri?.giaTri ?? null}
-                    onChange={v => capNhatOBang2(dong.id, maTieuChi, v)}
-                />
+                <>
+                    <InputNumber
+                        className="no-print"
+                        size="small"
+                        min={1}
+                        max={5}
+                        step={0.1}
+                        value={giaTriDangSua ?? undefined}
+                        onChange={v => setSuaDaDangThucDon(prev => ({ ...prev, [dong.phongBanId]: v === null || v === undefined ? null : Number(v) }))}
+                    />
+                    <span className="print-only">{hienThi}</span>
+                </>
             );
         }
+
         if (oGiaTri?.giaTri === undefined || oGiaTri?.giaTri === null) return <span>--</span>;
         return (
-            <span>
+            <span className={oGiaTri.chinhSuaThuCong ? "o-so-sua-tay" : undefined}>
                 {Number(oGiaTri.giaTri).toLocaleString("vi-VN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
             </span>
         );
@@ -362,15 +417,28 @@ const Phieu3FormPage: React.FC = () => {
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}
+                extraButtons={
+                    !laTaoMoi && (
+                        <Button
+                            className="no-print"
+                            icon={<FaFileWord />}
+                            loading={dangXuatWord}
+                            onClick={xuLyXuatWord}
+                        >
+                            Xuất Word
+                        </Button>
+                    )
+                }
             />
 
             {/* 2. FORM THÔNG TIN NHẬP LIỆU (NO-PRINT) — chỉ chọn được lúc tạo mới */}
             <PhieuInputCard title="Thông tin báo cáo">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                        <div className="mb-1 font-medium">Nhà thầu</div>
+                        <div className="mb-1 text-xs font-medium">Nhà thầu</div>
                         <Select
                             className="w-full"
+                            size="small"
                             placeholder="-- Chọn nhà thầu --"
                             showSearch
                             optionFilterProp="children"
@@ -384,16 +452,16 @@ const Phieu3FormPage: React.FC = () => {
                         </Select>
                     </div>
                     <div>
-                        <div className="mb-1 font-medium">Tháng</div>
-                        <Select className="w-full" disabled={!laTaoMoi} value={thang} onChange={v => setThang(v)}>
+                        <div className="mb-1 text-xs font-medium">Tháng</div>
+                        <Select className="w-full" size="small" disabled={!laTaoMoi} value={thang} onChange={v => setThang(v)}>
                             {Array.from({ length: 12 }, (_, i) => i + 1).map(t => (
                                 <Select.Option key={t} value={t}>Tháng {t}</Select.Option>
                             ))}
                         </Select>
                     </div>
                     <div>
-                        <div className="mb-1 font-medium">Năm</div>
-                        <Select className="w-full" disabled={!laTaoMoi} value={nam} onChange={v => setNam(v)}>
+                        <div className="mb-1 text-xs font-medium">Năm</div>
+                        <Select className="w-full" size="small" disabled={!laTaoMoi} value={nam} onChange={v => setNam(v)}>
                             {[nam - 1, nam, nam + 1].map(n => (
                                 <Select.Option key={n} value={n}>{n}</Select.Option>
                             ))}
@@ -415,7 +483,11 @@ const Phieu3FormPage: React.FC = () => {
                 </div>
             ) : (
                 <div className="phieu-a4">
-                    <PhieuHeader title="BÁO CÁO CHẤT LƯỢNG DỊCH VỤ SUẤT ĂN" />
+                    <PhieuHeader
+                        maPhieu="PHIEU3"
+                        soHieu={phieu?.soHieu}
+                        title="BÁO CÁO CHẤT LƯỢNG DỊCH VỤ SUẤT ĂN"
+                    />
                     <div className="phieu3-header-info">
                         <div>Nhà thầu: {tenNhaThau(nhaThauId) || "........................"}</div>
                         <div>Tháng {String(thang).padStart(2, "0")}/{nam}</div>
@@ -424,7 +496,7 @@ const Phieu3FormPage: React.FC = () => {
                     {/* 1. CĂN CỨ ĐÁNH GIÁ — tự tổng hợp từ Phiếu 1/Phiếu 2 trong tháng */}
                     <div className="phieu3-section-title">1. Căn cứ đánh giá</div>
                     <div className="phieu3-can-cu-list">
-                        <div>- Hợp đồng suất ăn công nghiệp số ........................;</div>
+                        <div>- Hợp đồng suất ăn công nghiệp số 0390.2023.HPDQ-PN-HDNT;</div>
                         {dsSoHieuPhieu2.length > 0 && (
                             <div>
                                 - Căn cứ kết quả đánh giá thực tế từ CBNV và phòng chức năng theo các Bảng đánh giá số{" "}
@@ -446,54 +518,43 @@ const Phieu3FormPage: React.FC = () => {
                     {/* BẢNG 1 */}
                     <div className="phieu3-bang-title no-print-mb">
                         2.1. Đánh giá trong tháng từ CBNV
-                        {coTheSua && (
-                            <Button
-                                className="no-print ml-3"
-                                size="small"
-                                icon={<FaSyncAlt />}
-                                loading={dangTinhLai}
-                                onClick={xuLyTinhLai}
-                            >
-                                Tính lại từ Phiếu 2
-                            </Button>
-                        )}
                     </div>
                     <table className="phieu-table phieu3-bang1-table">
                         <thead>
                             <tr>
                                 <th rowSpan={2} className="cot-noi-dung">Nội dung</th>
-                                <th colSpan={5}>Tiêu chí đánh giá</th>
+                                <th colSpan={BANG1_COT_DIEM.length}>Tiêu chí đánh giá</th>
                                 <th rowSpan={2}>Tổng</th>
                             </tr>
                             <tr>
-                                <th>1-Rất không hài lòng</th>
-                                <th>2-Không hài lòng</th>
-                                <th>3-Bình thường</th>
-                                <th>4-Hài lòng</th>
-                                <th>5-Rất hài lòng</th>
+                                {BANG1_COT_DIEM.map(cot => (
+                                    <th key={cot.key}>{cot.label}</th>
+                                ))}
                             </tr>
                         </thead>
                         <tbody>
-                            {bang1.map(dong => (
-                                <tr key={dong.maDong}>
-                                    <td className="o-noi-dung">
-                                        {tenDongBang1(dong.maDong)}
-                                        {dong.chinhSuaThuCong && (
-                                            <Tag className="ml-2" color="orange">Đã sửa tay</Tag>
-                                        )}
-                                    </td>
-                                    <td className="o-so">{renderOBang1(dong, "diem1")}</td>
-                                    <td className="o-so">{renderOBang1(dong, "diem2")}</td>
-                                    <td className="o-so">{renderOBang1(dong, "diem3")}</td>
-                                    <td className="o-so">{renderOBang1(dong, "diem4")}</td>
-                                    <td className="o-so">{renderOBang1(dong, "diem5")}</td>
-                                    <td className="o-so o-so-tong">{renderOBang1(dong, "tong")}</td>
-                                </tr>
-                            ))}
+                            {bang1.map(dong =>
+                                dong.maDong === "TONG_SUAT_AN" ? (
+                                    <tr key={dong.maDong}>
+                                        <td className="o-noi-dung" colSpan={1 + BANG1_COT_DIEM.length}>
+                                            {tenDongBang1(dong.maDong)}
+                                        </td>
+                                        <td className="o-so o-so-tong">{renderOBang1(dong, "tong")}</td>
+                                    </tr>
+                                ) : (
+                                    <tr key={dong.maDong}>
+                                        <td className="o-noi-dung">{tenDongBang1(dong.maDong)}</td>
+                                        {BANG1_COT_DIEM.map(cot => (
+                                            <td key={cot.key} className="o-so">{renderOBang1(dong, cot.key)}</td>
+                                        ))}
+                                        <td className="o-so o-so-tong">{renderOBang1(dong, "tong")}</td>
+                                    </tr>
+                                )
+                            )}
                         </tbody>
                     </table>
                     <div className="text-xs text-gray-400 no-print mt-1">
-                        "Tổng suất ăn tại chỗ" nhập tay hoàn toàn. "Tỷ lệ % tiêu chí đạt" tự tính = Lượt CBNV / Tổng suất ăn — bấm "Tính lại" sau khi nhập Tổng suất ăn.
+                        "Tổng suất ăn tại chỗ" nhập tay hoàn toàn (không dùng để tính tỷ lệ bên dưới). "Tỷ lệ % tiêu chí đánh giá" tự tính = Số lượt CBNV tham gia đánh giá ở từng mức / Tổng số lượt CBNV tham gia đánh giá — bấm "Làm mới" (thanh nút cuối trang) để cập nhật.
                     </div>
 
                     {/* BẢNG 2 */}
@@ -502,11 +563,11 @@ const Phieu3FormPage: React.FC = () => {
                         <thead>
                             <tr>
                                 <th rowSpan={2} className="cot-noi-dung">Bộ phận đánh giá</th>
-                                <th colSpan={MA_TIEU_CHI_BANG2.length}>Điểm đánh giá theo tiêu chí (thang điểm 1-5)</th>
+                                <th colSpan={BANG2_COT_TIEU_CHI.length}>Điểm đánh giá theo tiêu chí (thang điểm 1-5)</th>
                             </tr>
                             <tr>
-                                {MA_TIEU_CHI_BANG2.map(tc => (
-                                    <th key={tc}>{tenTieuChiBang2(tc)}</th>
+                                {BANG2_COT_TIEU_CHI.map(cot => (
+                                    <th key={cot.key}>{cot.label}</th>
                                 ))}
                             </tr>
                         </thead>
@@ -514,80 +575,60 @@ const Phieu3FormPage: React.FC = () => {
                             {bang2.map(dong => (
                                 <tr key={dong.id}>
                                     <td className="o-noi-dung">{tenPhongBan(dong.phongBanId)}</td>
-                                    {MA_TIEU_CHI_BANG2.map(tc => (
-                                        <td key={tc} className="o-so">{renderOBang2(dong, tc)}</td>
+                                    {BANG2_COT_TIEU_CHI.map(cot => (
+                                        <td key={cot.key} className="o-so">{renderOBang2(dong, cot.key)}</td>
                                     ))}
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                     <div className="text-xs text-gray-400 no-print mt-1">
-                        TC1..TC6 nhập tay hoàn toàn — nội dung tiêu chí hiển thị đã khớp theo mẫu báo cáo giấy.
+                        Dòng P.ĐN: TC1, TC2, TC4, TC5, TC6 tự động tính từ Phiếu 2 trong tháng (bấm "Làm mới" để cập nhật).
+                        Dòng P.ATMT: chỉ TC1 (VSATTP) tự động tính từ Phiếu 1 do P.ATMT lập trong tháng.
+                        Riêng TC3 "Đa dạng thực đơn" của dòng P.ĐN nhập tay được — bấm "Lưu thay đổi" (thanh nút cuối trang) để lưu.
                     </div>
 
-                    {/* Ý KIẾN NHÀ THẦU */}
+                    {/* Ý KIẾN BP.QLTT — cùng TC3 "Đa dạng thực đơn" ở Bảng 2, là 2
+                        trường tự nhập còn lại trên phiếu (phần còn lại của Bảng 1/2
+                        chỉ hiển thị số liệu hệ thống), lưu qua nút
+                        "Lưu thay đổi" ở thanh action cuối trang (xem luuYKien). */}
                     <div className="phieu-y-kien mt-4">
-                        <div className="phieu-ket-luan-title">Ý kiến / phản hồi của nhà thầu trong tháng</div>
-                        {chuaNoiDungHtml(yKien) ? (
-                            <div className="flex items-start justify-between gap-1">
-                                <GhiChuHtml className="ghi-chu-rich-preview flex-1" html={yKien} />
-                                <Tooltip title="Sửa ý kiến / ảnh">
-                                    <Button className="no-print" size="small" icon={<FaEdit />} onClick={() => setModalYKienMo(true)} />
-                                </Tooltip>
-                            </div>
+                        <div className="phieu3-bang-title mt-4">3. Ý kiến của BP.QLTT</div>
+                        {coTheSua ? (
+                            <>
+                                <TinyMceInline
+                                    className="no-print"
+                                    value={yKien}
+                                    onChange={setYKien}
+                                />
+                                {yKien && (
+                                    <GhiChuHtml className="ghi-chu-rich-preview print-only" html={yKien} />
+                                )}
+                            </>
+                        ) : yKien ? (
+                            <GhiChuHtml className="ghi-chu-rich-preview" html={yKien} />
                         ) : (
-                            <div className="no-print">
-                                <Button size="small" icon={<FaImage />} onClick={() => setModalYKienMo(true)}>
-                                    Nhập ý kiến phản hồi
-                                </Button>
-                            </div>
+                            <span className="text-gray-400 text-sm">Chưa có ý kiến</span>
                         )}
                     </div>
 
-                    {/* CHỮ KÝ */}
-                    <PhieuSignatures
-                        columns={[
-                            { title: "NGƯỜI LẬP PHIẾU", subTitle: "(Ký, ghi rõ họ tên)" },
-                            { title: "TRƯỞNG/PHÓ BỘ PHẬN", subTitle: "(Ký, ghi rõ họ tên)" },
-                        ]}
-                    />
                 </div>
             )}
 
-            {/* 4. THANH NÚT ACTION */}
+            {/* 4. THANH NÚT ACTION — không còn "Gửi ký": việc ký diễn ra bên
+                ngoài phần mềm trên bản Word xuất ra (xem xuLyXuatWord). */}
             {!laTaoMoi && (
                 <PhieuActions
                     coTheSua={coTheSua}
                     laTaoMoi={laTaoMoi}
                     trangThai={phieu?.trangThai}
-                    dangLuu={dangSua}
-                    dangGuiKy={dangGuiKy}
-                    onLuu={luuPhieu}
-                    onGuiKy={xuLyGuiKy}
+                    dangLuu={dangLuuYKien || dangLuuGiaTri}
+                    dangLamMoi={dangTinhLai}
+                    onLuu={luuYKien}
+                    onLamMoi={xuLyTinhLai}
                     onXoa={xuLyXoaPhieu}
                 />
             )}
-
-            {/* 5. TIẾN ĐỘ KÝ */}
-            {!laTaoMoi && phieuId && phieu && phieu.trangThai !== "NHAP" && (
-                <div className="no-print">
-                    <TienDoKy
-                        loaiDoiTuong="PHIEU3"
-                        doiTuongId={phieuId}
-                        onDaDongBo={() => dongBoTrangThaiPhieu3(phieuId)}
-                    />
-                </div>
-            )}
-
-            {/* 6. MODAL Ý KIẾN NHÀ THẦU (TINYMCE) */}
-            <TinyMceModal
-                open={modalYKienMo}
-                title="Soạn ý kiến phản hồi nhà thầu"
-                subtitle="Ý kiến / phản hồi của nhà thầu về kết quả đánh giá trong tháng"
-                initialValue={yKien}
-                onSave={html => { xuLyLuuYKien(html); }}
-                onCancel={() => setModalYKienMo(false)}
-            />
         </LayoutV2Component>
     );
 };

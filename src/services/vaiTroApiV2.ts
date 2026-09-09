@@ -4,7 +4,8 @@ import VaiTroModel from '../models/VaiTroModel';
 export interface VaiTroRequestV2 {
     ma: string;
     ten: string;
-    coQuyenDuyetTk: boolean;
+    laQuanTriVien: boolean;
+    quyenIds: number[];
 }
 
 export const vaiTroApiV2 = apiSliceV2.injectEndpoints({

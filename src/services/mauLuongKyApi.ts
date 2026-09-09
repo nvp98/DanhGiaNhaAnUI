@@ -7,7 +7,6 @@ export interface MauLuongKyRequest {
     tenBuoc: string;
     loaiNguoiKy: string;
     phongBanId?: number;
-    vaiTroId?: number;
     batBuoc: boolean;
 }
 

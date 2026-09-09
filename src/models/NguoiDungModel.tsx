@@ -8,4 +8,6 @@ export default interface NguoiDungModel {
     nhaThauId?: number;
     trangThai: string;
     danhSachVaiTro: string[];
+    laAdmin: boolean;
+    danhSachQuyen: string[];
 }

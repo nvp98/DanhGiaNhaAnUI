@@ -1,14 +1,16 @@
-import { Button, Select, Table, TableColumnsType, Tag } from "antd";
+import { Select, Table, TableColumnsType, Tag } from "antd";
 import React, { useEffect, useState } from "react";
-import { FaPlus } from "react-icons/fa";
+import { FaClipboardCheck } from "react-icons/fa";
 import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import LayoutV2Component from "../../components/LayoutV2Component";
 import Phieu1Model from "../../models/Phieu1Model";
 import { useDanhSachBepAnQuery } from "../../services/bepAnApiV2";
+import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
 import { useDanhSachPhieu1Query } from "../../services/phieu1Api";
 import { useDanhSachPhongBanQuery } from "../../services/phongBanApiV2";
 import { RootType } from "../../store/types";
+import { PhieuListHeader } from "../../components/phieu";
 
 const DS_TRANG_THAI = [
     { value: "NHAP", label: "Nháp", color: "default" },
@@ -25,15 +27,22 @@ const Phieu1DanhSachPage: React.FC = () => {
     const navigator = useNavigate();
 
     const [locBepAnId, setLocBepAnId] = useState<number | undefined>(undefined);
+    const [locNhaThauId, setLocNhaThauId] = useState<number | undefined>(undefined);
     const [locPhongBanId, setLocPhongBanId] = useState<number | undefined>(undefined);
     const [locTrangThai, setLocTrangThai] = useState<string | undefined>(undefined);
 
+    // Nhà thầu chỉ xem/lọc được đúng nhà thầu của chính mình (backend cũng đã
+    // ép lọc theo claim nha_thau_id, xem Phieu1Controller/GetNhaThauId()).
+    const laTaiKhoanNhaThau = !!authV2.nguoiDung?.nhaThauId;
+
     const { data: danhSachPhieu = [], isFetching } = useDanhSachPhieu1Query({
         bepAnId: locBepAnId,
+        nhaThauId: laTaiKhoanNhaThau ? authV2.nguoiDung?.nhaThauId : locNhaThauId,
         phongBanId: locPhongBanId,
         trangThai: locTrangThai,
     });
     const { data: danhSachBepAn = [] } = useDanhSachBepAnQuery();
+    const { data: danhSachNhaThau = [] } = useDanhSachNhaThauQuery();
     const { data: danhSachPhongBan = [] } = useDanhSachPhongBanQuery();
 
     useEffect(() => {
@@ -47,6 +56,7 @@ const Phieu1DanhSachPage: React.FC = () => {
     }
 
     const tenBepAn = (id: number) => danhSachBepAn.find(b => b.id === id)?.ten ?? "";
+    const tenNhaThau = (id: number) => danhSachNhaThau.find(nt => nt.id === id)?.ten ?? "";
     const tenPhongBan = (id: number) => danhSachPhongBan.find(pb => pb.id === id)?.ten ?? "";
 
     const columns: TableColumnsType<Phieu1Model> = [
@@ -54,7 +64,7 @@ const Phieu1DanhSachPage: React.FC = () => {
             title: 'Số hiệu',
             dataIndex: 'soHieu',
             key: 'soHieu',
-            width: 220,
+            width: 400,
             render: (soHieu, record) => <Link to={`/phieu1/${record.id}`} className="text-[#004aad] font-medium">{soHieu}</Link>,
         },
         {
@@ -72,9 +82,17 @@ const Phieu1DanhSachPage: React.FC = () => {
             render: (id) => tenBepAn(id),
         },
         {
+            title: 'Nhà thầu',
+            dataIndex: 'nhaThauId',
+            key: 'nhaThauId',
+            width: 300,
+            render: (id) => tenNhaThau(id),
+        },
+        {
             title: 'Phòng ban lập phiếu',
             dataIndex: 'phongBanId',
             key: 'phongBanId',
+            width: 300,
             render: (id) => tenPhongBan(id),
         },
         {
@@ -87,16 +105,16 @@ const Phieu1DanhSachPage: React.FC = () => {
     ];
 
     return <LayoutV2Component>
-        <div className="flex justify-between items-center gap-3 mb-6">
-            <h2 className="font-bold text-xl text-zinc-700">PHIẾU KIỂM TRA VSATTP</h2>
-            <Button type="primary" icon={<FaPlus />} onClick={() => navigator("/phieu1/moi")}>
-                Lập phiếu mới
-            </Button>
-        </div>
+         <PhieuListHeader
+                     icon={<FaClipboardCheck />}
+                     title="Phiếu kiểm tra công tác VSATTP"
+                     actionLabel={laTaiKhoanNhaThau ? undefined : "Lập phiếu mới"}
+                     onAction={laTaiKhoanNhaThau ? undefined : () => navigator("/phieu1/moi")}
+                 />
 
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 mb-4">
             <Select
-                className="w-[240px]"
+                className="w-full sm:w-[240px]"
                 allowClear
                 placeholder="-- Lọc theo bếp ăn --"
                 showSearch
@@ -108,8 +126,23 @@ const Phieu1DanhSachPage: React.FC = () => {
                     <Select.Option key={b.id} value={b.id}>{b.ten}</Select.Option>
                 ))}
             </Select>
+            {!laTaiKhoanNhaThau && (
+                <Select
+                    className="w-full sm:w-[220px]"
+                    allowClear
+                    placeholder="-- Lọc theo nhà thầu --"
+                    showSearch
+                    optionFilterProp="children"
+                    value={locNhaThauId}
+                    onChange={(value) => setLocNhaThauId(value)}
+                >
+                    {danhSachNhaThau.map(nt => (
+                        <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                    ))}
+                </Select>
+            )}
             <Select
-                className="w-[220px]"
+                className="w-full sm:w-[220px]"
                 allowClear
                 placeholder="-- Lọc theo phòng ban --"
                 value={locPhongBanId}
@@ -120,7 +153,7 @@ const Phieu1DanhSachPage: React.FC = () => {
                 ))}
             </Select>
             <Select
-                className="w-[200px]"
+                className="w-full sm:w-[200px]"
                 allowClear
                 placeholder="-- Lọc theo trạng thái --"
                 value={locTrangThai}

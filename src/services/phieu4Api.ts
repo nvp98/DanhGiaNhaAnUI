@@ -14,8 +14,15 @@ export interface Phieu4GiaTriItem {
     giaTri?: number | null;
 }
 
+// Bảng 4/5 — giá trị chung, không chia theo cột nhà thầu (xem Phieu4DongModel.giaTriChung)
+export interface Phieu4GiaTriChungItem {
+    dongId: number;
+    giaTriChung?: number | null;
+}
+
 export interface Phieu4CapNhatGiaTriRequest {
     giaTri: Phieu4GiaTriItem[];
+    giaTriChung: Phieu4GiaTriChungItem[];
 }
 
 export interface Phieu4BangRequest {
@@ -59,6 +66,10 @@ export const phieu4Api = apiSliceV2.injectEndpoints({
             query: ({ id, body }) => ({ url: `/phieu4/${id}/nha-thau`, method: 'POST', body }),
             invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu4', id }],
         }),
+        xoaNhaThauPhieu4: builder.mutation<Phieu4ResponseModel, { id: number; nhaThauId: number }>({
+            query: ({ id, nhaThauId }) => ({ url: `/phieu4/${id}/nha-thau/${nhaThauId}`, method: 'DELETE' }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu4', id }],
+        }),
         capNhatGiaTriPhieu4: builder.mutation<Phieu4ResponseModel, { id: number; body: Phieu4CapNhatGiaTriRequest }>({
             query: ({ id, body }) => ({ url: `/phieu4/${id}/gia-tri`, method: 'PUT', body }),
             invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu4', id }],
@@ -85,6 +96,7 @@ export const {
     useXoaPhieu4Mutation,
     useTinhLaiPhieu4Mutation,
     useThemNhaThauPhieu4Mutation,
+    useXoaNhaThauPhieu4Mutation,
     useCapNhatGiaTriPhieu4Mutation,
     useSuaBangPhieu4Mutation,
     useGuiKyPhieu4Mutation,

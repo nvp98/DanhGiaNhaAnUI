@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import { FiEdit2 } from "react-icons/fi";
+import { IoSearchOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useDanhSachNhaThauQuery, useSuaNhaThauMutation, useThemNhaThauMutation, useXoaNhaThauMutation } from "../services/nhaThauApiV2";
@@ -11,6 +12,7 @@ import LayoutV2Component from "../components/LayoutV2Component";
 import NhaThauModel from "../models/NhaThauModel";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
+import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
 
 const DS_TRANG_THAI = [
     { value: "HOAT_DONG", label: "Hoạt động", color: "success" },
@@ -35,14 +37,17 @@ const NhaThauPageV2: React.FC = () => {
     const [moModal, setMoModal] = useState(false);
     const [dangSua, setDangSua] = useState<NhaThauModel | null>(null);
     const [form] = useForm();
+    const [searchText, setSearchText] = useState("");
 
     useEffect(() => {
         if (!authV2.isAuthenticated) {
             navigator("/v2/dang-nhap");
+        } else if (!coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_DANH_MUC)) {
+            navigator("/v2");
         }
     }, []);
 
-    if (!authV2.isAuthenticated) {
+    if (!authV2.isAuthenticated || !coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_DANH_MUC)) {
         return null;
     }
 
@@ -94,6 +99,11 @@ const NhaThauPageV2: React.FC = () => {
             }));
         }
     };
+
+    const tuKhoa = searchText.trim().toLowerCase();
+    const danhSachDaLoc = tuKhoa
+        ? danhSachNhaThau.filter(nt => `${nt.ma} ${nt.ten}`.toLowerCase().includes(tuKhoa))
+        : danhSachNhaThau;
 
     const xuLyXoaNhaThau = async (id: number) => {
         try {
@@ -159,16 +169,24 @@ const NhaThauPageV2: React.FC = () => {
     ];
 
     return <LayoutV2Component>
-        <div className="flex justify-between items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <h2 className="font-bold text-xl text-zinc-700">DANH MỤC NHÀ THẦU</h2>
             <Button type="primary" icon={<FaPlus />} onClick={moModalThem}>
                 Thêm nhà thầu
             </Button>
         </div>
 
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 mb-4">
+            <Input
+                className="w-full sm:w-[280px]"
+                allowClear
+                placeholder="Tìm theo mã/tên nhà thầu..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                prefix={<IoSearchOutline className="text-gray-400" />}
+            />
             <Select
-                className="w-[220px]"
+                className="w-full sm:w-[220px]"
                 allowClear
                 placeholder="-- Lọc theo trạng thái --"
                 value={locTrangThai}
@@ -184,7 +202,7 @@ const NhaThauPageV2: React.FC = () => {
             rowKey="id"
             loading={isFetching}
             columns={columns}
-            dataSource={danhSachNhaThau}
+            dataSource={danhSachDaLoc}
             scroll={{ x: 900 }}
         />
 

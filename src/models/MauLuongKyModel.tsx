@@ -3,8 +3,7 @@ export default interface MauLuongKyModel {
     loaiPhieu: string;
     buocThuTu: number;
     tenBuoc: string;
-    loaiNguoiKy: string; // PHONG_BAN | NHA_THAU | VAI_TRO
+    loaiNguoiKy: string; // PHONG_BAN | NHA_THAU | TRUC_TIEP
     phongBanId?: number;
-    vaiTroId?: number;
     batBuoc: boolean;
 }

@@ -40,17 +40,13 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import { FLUSH, PAUSE, PERSIST, PURGE, REGISTER, REHYDRATE, persistReducer, persistStore } from 'redux-persist';
 import storage from 'redux-persist/lib/storage'; // defaults to localStorage for web
 
-import authSlice from './authSlice';
 import notifyReducer from './notifycationSlide';
-import showMenuSlice from './ShowMenuSlide';
 import nhaAnSlice from './NhaAnSlice';
 import authV2Slice from './authV2Slice';
 import { apiSliceV2 } from '../services/apiSliceV2';
 
 const rootReducer = combineReducers({
-  auth: authSlice,
   notify: notifyReducer,
-  showMenu: showMenuSlice,
   nhaAn: nhaAnSlice,
   authV2: authV2Slice,
   [apiSliceV2.reducerPath]: apiSliceV2.reducer

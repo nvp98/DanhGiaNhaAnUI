@@ -1,6 +1,8 @@
 import { apiSliceV2 } from './apiSliceV2';
 import NguoiDungListItemModel from '../models/NguoiDungListItemModel';
 import ChuKyModel from '../models/ChuKyModel';
+import MauLuongKyKhaDungModel from '../models/MauLuongKyKhaDungModel';
+import NguoiDungPhieuQuyenModel from '../models/NguoiDungPhieuQuyenModel';
 
 export interface DanhSachNguoiDungParamsV2 {
     trangThai?: string;
@@ -17,6 +19,8 @@ export interface TaoNguoiDungParamsV2 {
     phongBanId?: number;
     nhaThauId?: number;
     vaiTroIds: number[];
+    mauLuongKyIds?: number[];
+    phieuQuyen?: NguoiDungPhieuQuyenModel[];
 }
 
 export const nguoiDungApiV2 = apiSliceV2.injectEndpoints({
@@ -60,6 +64,10 @@ export const nguoiDungApiV2 = apiSliceV2.injectEndpoints({
             query: (id) => ({ url: `/nguoi-dung/${id}/tu-choi`, method: 'POST' }),
             invalidatesTags: (_result, _error, id) => [{ type: 'NguoiDung', id }, { type: 'NguoiDung', id: 'LIST' }],
         }),
+        xoaVinhVienNguoiDung: builder.mutation<{ message: string }, number>({
+            query: (id) => ({ url: `/nguoi-dung/${id}`, method: 'DELETE' }),
+            invalidatesTags: (_result, _error, id) => [{ type: 'NguoiDung', id }, { type: 'NguoiDung', id: 'LIST' }],
+        }),
         khoaNguoiDung: builder.mutation<{ message: string }, number>({
             query: (id) => ({ url: `/nguoi-dung/${id}/khoa`, method: 'POST' }),
             invalidatesTags: (_result, _error, id) => [{ type: 'NguoiDung', id }, { type: 'NguoiDung', id: 'LIST' }],
@@ -75,6 +83,22 @@ export const nguoiDungApiV2 = apiSliceV2.injectEndpoints({
         resetMatKhauNguoiDung: builder.mutation<{ message: string }, number>({
             query: (id) => ({ url: `/nguoi-dung/${id}/reset-mat-khau`, method: 'POST' }),
         }),
+        luongKyKhaDungNguoiDung: builder.query<MauLuongKyKhaDungModel[], number>({
+            query: (id) => `/nguoi-dung/${id}/luong-ky-kha-dung`,
+            providesTags: (_result, _error, id) => [{ type: 'NguoiDung', id: `LUONG_KY_${id}` }],
+        }),
+        capNhatLuongKyNguoiDung: builder.mutation<{ message: string }, { id: number; mauLuongKyIds: number[] }>({
+            query: ({ id, mauLuongKyIds }) => ({ url: `/nguoi-dung/${id}/luong-ky`, method: 'PUT', body: { mauLuongKyIds } }),
+            invalidatesTags: (_result, _error, { id }) => [
+                { type: 'NguoiDung', id },
+                { type: 'NguoiDung', id: 'LIST' },
+                { type: 'NguoiDung', id: `LUONG_KY_${id}` },
+            ],
+        }),
+        capNhatPhieuQuyenNguoiDung: builder.mutation<{ message: string }, { id: number; danhSach: NguoiDungPhieuQuyenModel[] }>({
+            query: ({ id, danhSach }) => ({ url: `/nguoi-dung/${id}/phieu-quyen`, method: 'PUT', body: { danhSach } }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'NguoiDung', id }, { type: 'NguoiDung', id: 'LIST' }],
+        }),
     }),
 });
 
@@ -84,6 +108,7 @@ export const {
     useTaoNguoiDungMutation,
     useDuyetNguoiDungMutation,
     useTuChoiNguoiDungMutation,
+    useXoaVinhVienNguoiDungMutation,
     useKhoaNguoiDungMutation,
     useMoKhoaNguoiDungMutation,
     useCapNhatVaiTroNguoiDungMutation,
@@ -91,4 +116,7 @@ export const {
     useDanhSachChuKyNguoiDungQuery,
     useUploadChuKyNguoiDungMutation,
     useKichHoatChuKyNguoiDungMutation,
+    useLuongKyKhaDungNguoiDungQuery,
+    useCapNhatLuongKyNguoiDungMutation,
+    useCapNhatPhieuQuyenNguoiDungMutation,
 } = nguoiDungApiV2;

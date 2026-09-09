@@ -1,15 +1,18 @@
-import { Button, Checkbox, Form, Input, Modal, Popconfirm, Space, Table, TableColumnsType, Tag } from "antd";
+import { Button, Checkbox, Form, Input, Modal, Popconfirm, Space, Switch, Table, TableColumnsType, Tag } from "antd";
 import { useForm } from "antd/es/form/Form";
 import React, { useEffect, useState } from "react";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import { FiEdit2 } from "react-icons/fi";
+import { IoSearchOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { useDanhSachVaiTroQuery, useSuaVaiTroMutation, useThemVaiTroMutation, useXoaVaiTroMutation } from "../services/vaiTroApiV2";
+import { useDanhSachQuyenQuery } from "../services/quyenApiV2";
 import LayoutV2Component from "../components/LayoutV2Component";
 import VaiTroModel from "../models/VaiTroModel";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
+import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
 
 const VaiTroPageV2: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
@@ -17,37 +20,48 @@ const VaiTroPageV2: React.FC = () => {
     const navigator = useNavigate();
 
     const { data: danhSachVaiTro = [], isFetching } = useDanhSachVaiTroQuery();
+    const { data: danhSachQuyen = [] } = useDanhSachQuyenQuery();
     const [themVaiTro, { isLoading: dangThem }] = useThemVaiTroMutation();
     const [suaVaiTro, { isLoading: dangSuaLoading }] = useSuaVaiTroMutation();
     const [xoaVaiTro] = useXoaVaiTroMutation();
 
     const [moModal, setMoModal] = useState(false);
     const [dangSua, setDangSua] = useState<VaiTroModel | null>(null);
+    const [laQuanTriVien, setLaQuanTriVien] = useState(false);
     const [form] = useForm();
+    const [searchText, setSearchText] = useState("");
 
     useEffect(() => {
         if (!authV2.isAuthenticated) {
             navigator("/v2/dang-nhap");
+        } else if (!coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_VAI_TRO)) {
+            navigator("/v2");
         }
     }, []);
 
-    if (!authV2.isAuthenticated) {
+    if (!authV2.isAuthenticated || !coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_VAI_TRO)) {
         return null;
     }
 
+    const tenQuyen = (quyenIds: number[]) =>
+        danhSachQuyen.filter((q) => quyenIds.includes(q.id)).map((q) => q.ten);
+
     const moModalThem = () => {
         setDangSua(null);
+        setLaQuanTriVien(false);
         form.resetFields();
-        form.setFieldsValue({ coQuyenDuyetTk: false });
+        form.setFieldsValue({ laQuanTriVien: false, quyenIds: [] });
         setMoModal(true);
     };
 
     const moModalSua = (vaiTro: VaiTroModel) => {
         setDangSua(vaiTro);
+        setLaQuanTriVien(vaiTro.laQuanTriVien);
         form.setFieldsValue({
             ma: vaiTro.ma,
             ten: vaiTro.ten,
-            coQuyenDuyetTk: vaiTro.coQuyenDuyetTk,
+            laQuanTriVien: vaiTro.laQuanTriVien,
+            quyenIds: vaiTro.quyenIds,
         });
         setMoModal(true);
     };
@@ -56,7 +70,8 @@ const VaiTroPageV2: React.FC = () => {
         const payload = {
             ma: values.ma,
             ten: values.ten,
-            coQuyenDuyetTk: !!values.coQuyenDuyetTk,
+            laQuanTriVien: !!values.laQuanTriVien,
+            quyenIds: values.laQuanTriVien ? [] : (values.quyenIds || []),
         };
 
         try {
@@ -76,6 +91,11 @@ const VaiTroPageV2: React.FC = () => {
             }));
         }
     };
+
+    const tuKhoa = searchText.trim().toLowerCase();
+    const danhSachDaLoc = tuKhoa
+        ? danhSachVaiTro.filter(vt => `${vt.ma} ${vt.ten}`.toLowerCase().includes(tuKhoa))
+        : danhSachVaiTro;
 
     const xuLyXoaVaiTro = async (id: number) => {
         try {
@@ -101,11 +121,20 @@ const VaiTroPageV2: React.FC = () => {
             sorter: { compare: (a, b) => a.ten.localeCompare(b.ten) },
         },
         {
-            title: 'Quyền duyệt tài khoản',
-            dataIndex: 'coQuyenDuyetTk',
-            key: 'coQuyenDuyetTk',
-            width: 200,
-            render: (coQuyen) => coQuyen ? <Tag color="blue">Có</Tag> : <Tag>Không</Tag>,
+            title: 'Quản trị viên',
+            dataIndex: 'laQuanTriVien',
+            key: 'laQuanTriVien',
+            width: 140,
+            render: (laQuanTriVien) => laQuanTriVien ? <Tag color="red">Toàn quyền</Tag> : <Tag>Không</Tag>,
+        },
+        {
+            title: 'Quyền được gán',
+            dataIndex: 'quyenIds',
+            key: 'quyenIds',
+            render: (quyenIds: number[], record) =>
+                record.laQuanTriVien
+                    ? <span className="text-zinc-400 italic">Tất cả (quản trị viên)</span>
+                    : tenQuyen(quyenIds).map((ten) => <Tag key={ten}>{ten}</Tag>),
         },
         {
             title: '',
@@ -129,18 +158,29 @@ const VaiTroPageV2: React.FC = () => {
     ];
 
     return <LayoutV2Component>
-        <div className="flex justify-between items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <h2 className="font-bold text-xl text-zinc-700">DANH MỤC VAI TRÒ</h2>
             <Button type="primary" icon={<FaPlus />} onClick={moModalThem}>
                 Thêm vai trò
             </Button>
         </div>
 
+        <div className="flex flex-wrap gap-3 mb-4">
+            <Input
+                className="w-full sm:w-[280px]"
+                allowClear
+                placeholder="Tìm theo mã/tên vai trò..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                prefix={<IoSearchOutline className="text-gray-400" />}
+            />
+        </div>
+
         <Table
             rowKey="id"
             loading={isFetching}
             columns={columns}
-            dataSource={danhSachVaiTro}
+            dataSource={danhSachDaLoc}
             scroll={{ x: 700 }}
         />
 
@@ -161,8 +201,23 @@ const VaiTroPageV2: React.FC = () => {
                 <Form.Item label="Tên vai trò" name="ten" rules={[{ required: true, message: "Vui lòng nhập tên vai trò!" }]}>
                     <Input />
                 </Form.Item>
-                <Form.Item name="coQuyenDuyetTk" valuePropName="checked">
-                    <Checkbox>Có quyền duyệt tài khoản</Checkbox>
+                <Form.Item name="laQuanTriVien" valuePropName="checked">
+                    <Switch
+                        checkedChildren="Quản trị viên (toàn quyền)"
+                        unCheckedChildren="Quản trị viên (toàn quyền)"
+                        onChange={setLaQuanTriVien}
+                    />
+                </Form.Item>
+                <Form.Item
+                    label="Quyền được gán"
+                    name="quyenIds"
+                    extra={laQuanTriVien ? "Đã bật Quản trị viên — vai trò này tự động có mọi quyền, không cần chọn thêm." : undefined}
+                >
+                    <Checkbox.Group
+                        disabled={laQuanTriVien}
+                        options={danhSachQuyen.map((q) => ({ label: q.ten, value: q.id }))}
+                        className="flex flex-col gap-1"
+                    />
                 </Form.Item>
             </Form>
         </Modal>

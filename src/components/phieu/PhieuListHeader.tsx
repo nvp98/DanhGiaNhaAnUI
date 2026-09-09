@@ -18,8 +18,8 @@ export const PhieuListHeader: React.FC<PhieuListHeaderProps> = ({
     onAction,
 }) => {
     return (
-        <div className="flex justify-between items-center gap-3 mb-5">
-            <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
+            <div className="flex items-center gap-3 min-w-0">
                 <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-[#004aad]/10 text-[#004aad] text-lg shrink-0">
                     {icon}
                 </div>

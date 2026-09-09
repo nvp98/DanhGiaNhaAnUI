@@ -1,3 +1,5 @@
+import NguoiDungPhieuQuyenModel from "./NguoiDungPhieuQuyenModel";
+
 export default interface NguoiDungListItemModel {
     id: number;
     tenDangNhap: string;
@@ -11,4 +13,6 @@ export default interface NguoiDungListItemModel {
     ngayDuyet?: string;
     ngayTao: string;
     danhSachVaiTro: string[];
+    danhSachMauLuongKyId: number[];
+    phieuQuyen: NguoiDungPhieuQuyenModel[];
 }

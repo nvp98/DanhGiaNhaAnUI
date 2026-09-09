@@ -1,17 +1,19 @@
-import { Select, Table, TableColumnsType, Tag } from "antd";
+import { Button, Modal, Select, Table, TableColumnsType, Tag } from "antd";
 import React, { useEffect, useState } from "react";
 import { FaChartBar } from "react-icons/fa";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import LayoutV2Component from "../../components/LayoutV2Component";
 import { mauTrangThaiPhieu, tenTrangThaiPhieu, DS_TRANG_THAI_PHIEU, PhieuFilterBar, PhieuListHeader } from "../../components/phieu";
 import Phieu3Model from "../../models/Phieu3Model";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
-import { useDanhSachPhieu3Query } from "../../services/phieu3Api";
+import { useDanhSachPhieu3Query, useThemPhieu3Mutation } from "../../services/phieu3Api";
+import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
 
 const Phieu3DanhSachPage: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
+    const dispatch = useDispatch();
     const navigator = useNavigate();
 
     const [locNhaThauId, setLocNhaThauId] = useState<number | undefined>(undefined);
@@ -19,8 +21,21 @@ const Phieu3DanhSachPage: React.FC = () => {
     const [locNam, setLocNam] = useState<number | undefined>(undefined);
     const [locTrangThai, setLocTrangThai] = useState<string | undefined>(undefined);
 
+    // Popup "Lập báo cáo mới" — gọn ngay trên trang danh sách thay vì
+    // chuyển sang /phieu3/moi (trang riêng chỉ để nhập đúng 3 trường này).
+    const [moPopupTaoMoi, setMoPopupTaoMoi] = useState(false);
+    const [moNhaThauId, setMoNhaThauId] = useState<number | undefined>(undefined);
+    const [moThang, setMoThang] = useState<number>(new Date().getMonth() + 1);
+    const [moNam, setMoNam] = useState<number>(new Date().getFullYear());
+    const [themPhieu3, { isLoading: dangTao }] = useThemPhieu3Mutation();
+
+    // Nhà thầu chỉ xem/lọc được đúng nhà thầu của chính mình (Phiếu 3 không
+    // có bước nào nhà thầu ký, chỉ xem + gửi ý kiến phản hồi) — backend cũng
+    // đã ép lọc theo claim nha_thau_id, xem Phieu3Controller/GetNhaThauId().
+    const laTaiKhoanNhaThau = !!authV2.nguoiDung?.nhaThauId;
+
     const { data: danhSachPhieu = [], isFetching } = useDanhSachPhieu3Query({
-        nhaThauId: locNhaThauId,
+        nhaThauId: laTaiKhoanNhaThau ? authV2.nguoiDung?.nhaThauId : locNhaThauId,
         thang: locThang,
         nam: locNam,
         trangThai: locTrangThai,
@@ -36,6 +51,21 @@ const Phieu3DanhSachPage: React.FC = () => {
     if (!authV2.isAuthenticated) {
         return null;
     }
+
+    const xuLyTaoMoi = async () => {
+        if (!moNhaThauId) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: "Vui lòng chọn nhà thầu", messageNotify: "" }));
+            return;
+        }
+        try {
+            const ketQua = await themPhieu3({ thang: moThang, nam: moNam, nhaThauId: moNhaThauId }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lập báo cáo", messageNotify: "" }));
+            setMoPopupTaoMoi(false);
+            navigator(`/phieu3/${ketQua.phieu.id}`);
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Lập báo cáo thất bại", messageNotify: "" }));
+        }
+    };
 
     const tenNhaThau = (id: number) => danhSachNhaThau.find(nt => nt.id === id)?.ten ?? "";
 
@@ -76,26 +106,33 @@ const Phieu3DanhSachPage: React.FC = () => {
         <PhieuListHeader
             icon={<FaChartBar />}
             title="Báo cáo chất lượng dịch vụ suất ăn (theo tháng)"
-            actionLabel="Lập báo cáo mới"
-            onAction={() => navigator("/phieu3/moi")}
+            actionLabel={laTaiKhoanNhaThau ? undefined : "Lập báo cáo mới"}
+            onAction={laTaiKhoanNhaThau ? undefined : () => {
+                setMoNhaThauId(undefined);
+                setMoThang(new Date().getMonth() + 1);
+                setMoNam(new Date().getFullYear());
+                setMoPopupTaoMoi(true);
+            }}
         />
 
         <PhieuFilterBar>
+            {!laTaiKhoanNhaThau && (
+                <Select
+                    className="w-full sm:w-[220px]"
+                    allowClear
+                    placeholder="-- Lọc theo nhà thầu --"
+                    showSearch
+                    optionFilterProp="children"
+                    value={locNhaThauId}
+                    onChange={(value) => setLocNhaThauId(value)}
+                >
+                    {danhSachNhaThau.map(nt => (
+                        <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                    ))}
+                </Select>
+            )}
             <Select
-                className="w-[220px]"
-                allowClear
-                placeholder="-- Lọc theo nhà thầu --"
-                showSearch
-                optionFilterProp="children"
-                value={locNhaThauId}
-                onChange={(value) => setLocNhaThauId(value)}
-            >
-                {danhSachNhaThau.map(nt => (
-                    <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
-                ))}
-            </Select>
-            <Select
-                className="w-[140px]"
+                className="w-full sm:w-[140px]"
                 allowClear
                 placeholder="-- Tháng --"
                 value={locThang}
@@ -106,7 +143,7 @@ const Phieu3DanhSachPage: React.FC = () => {
                 ))}
             </Select>
             <Select
-                className="w-[120px]"
+                className="w-full sm:w-[120px]"
                 allowClear
                 placeholder="-- Năm --"
                 value={locNam}
@@ -117,7 +154,7 @@ const Phieu3DanhSachPage: React.FC = () => {
                 ))}
             </Select>
             <Select
-                className="w-[200px]"
+                className="w-full sm:w-[200px]"
                 allowClear
                 placeholder="-- Lọc theo trạng thái --"
                 value={locTrangThai}
@@ -138,6 +175,53 @@ const Phieu3DanhSachPage: React.FC = () => {
                 scroll={{ x: 700 }}
             />
         </div>
+
+        <Modal
+            title="Lập báo cáo mới"
+            open={moPopupTaoMoi}
+            onCancel={() => setMoPopupTaoMoi(false)}
+            width={420}
+            footer={[
+                <Button key="cancel" onClick={() => setMoPopupTaoMoi(false)}>Hủy</Button>,
+                <Button key="tao" type="primary" loading={dangTao} onClick={xuLyTaoMoi}>Lập báo cáo</Button>,
+            ]}
+        >
+            <div className="flex flex-col gap-3 mt-2">
+                <div>
+                    <div className="mb-1 text-xs font-medium">Nhà thầu</div>
+                    <Select
+                        className="w-full"
+                        placeholder="-- Chọn nhà thầu --"
+                        showSearch
+                        optionFilterProp="children"
+                        value={moNhaThauId}
+                        onChange={v => setMoNhaThauId(v)}
+                    >
+                        {danhSachNhaThau.map(nt => (
+                            <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                        ))}
+                    </Select>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <div className="mb-1 text-xs font-medium">Tháng</div>
+                        <Select className="w-full" value={moThang} onChange={v => setMoThang(v)}>
+                            {Array.from({ length: 12 }, (_, i) => i + 1).map(t => (
+                                <Select.Option key={t} value={t}>Tháng {t}</Select.Option>
+                            ))}
+                        </Select>
+                    </div>
+                    <div>
+                        <div className="mb-1 text-xs font-medium">Năm</div>
+                        <Select className="w-full" value={moNam} onChange={v => setMoNam(v)}>
+                            {[moNam - 1, moNam, moNam + 1].map(n => (
+                                <Select.Option key={n} value={n}>{n}</Select.Option>
+                            ))}
+                        </Select>
+                    </div>
+                </div>
+            </div>
+        </Modal>
     </LayoutV2Component>;
 };
 

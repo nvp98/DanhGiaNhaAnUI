@@ -15,9 +15,9 @@ export const PhieuInputCard: React.FC<PhieuInputCardProps> = ({
     children,
 }) => {
     return (
-        <div className="no-print mb-5">
-            <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-5 py-4">
-                <div className="flex items-center gap-2 mb-4 text-zinc-500 font-medium text-sm uppercase tracking-wide">
+        <div className="no-print mb-4">
+            <div className="bg-zinc-50 border border-zinc-100 rounded-xl px-4 py-3">
+                <div className="flex items-center gap-2 mb-3 text-zinc-500 font-medium text-xs uppercase tracking-wide">
                     <FaEdit />
                     {title}
                 </div>

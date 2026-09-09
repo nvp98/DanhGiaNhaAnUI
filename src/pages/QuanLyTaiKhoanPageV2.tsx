@@ -1,30 +1,38 @@
-import { Button, Card, Checkbox, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, TableColumnsType, Tag, Upload } from "antd";
+import { Button, Card, Checkbox, Drawer, Form, Input, Modal, Popconfirm, Select, Space, Table, TableColumnsType, Tag, Tooltip, Upload } from "antd";
 import type { RcFile } from "antd/es/upload";
 import React, { useEffect, useState } from "react";
-import { FaKey, FaLock, FaLockOpen } from "react-icons/fa";
+import { FaKey, FaLock, FaLockOpen, FaTrash } from "react-icons/fa";
+import { IoSearchOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import LayoutV2Component from "../components/LayoutV2Component";
 import NguoiDungListItemModel from "../models/NguoiDungListItemModel";
+import NguoiDungPhieuQuyenModel from "../models/NguoiDungPhieuQuyenModel";
 import { ApiRootV2 } from "../services/LinkServerV2";
 import {
+    useCapNhatLuongKyNguoiDungMutation,
+    useCapNhatPhieuQuyenNguoiDungMutation,
     useCapNhatVaiTroNguoiDungMutation,
     useDanhSachChuKyNguoiDungQuery,
     useDanhSachNguoiDungQuery,
     useDuyetNguoiDungMutation,
     useKhoaNguoiDungMutation,
     useKichHoatChuKyNguoiDungMutation,
+    useLuongKyKhaDungNguoiDungQuery,
     useMoKhoaNguoiDungMutation,
     useResetMatKhauNguoiDungMutation,
     useTaoNguoiDungMutation,
     useTuChoiNguoiDungMutation,
     useUploadChuKyNguoiDungMutation,
+    useXoaVinhVienNguoiDungMutation,
 } from "../services/nguoiDungApiV2";
 import { useDanhSachNhaThauQuery } from "../services/nhaThauApiV2";
 import { useDanhSachPhongBanQuery } from "../services/phongBanApiV2";
 import { useDanhSachVaiTroQuery } from "../services/vaiTroApiV2";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
+import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { DS_LOAI_PHIEU, tenLoaiPhieu } from "./NhomTieuChiPage";
 
 const DS_TRANG_THAI = [
     { value: "CHO_DUYET", label: "Chờ duyệt", color: "warning" },
@@ -45,6 +53,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
 
     // Mặc định vào trang là xem TẤT CẢ trạng thái (không chỉ riêng CHO_DUYET).
     const [locTrangThai, setLocTrangThai] = useState<string | undefined>(undefined);
+    const [searchText, setSearchText] = useState("");
 
     const { data: danhSachNguoiDung = [], isFetching } = useDanhSachNguoiDungQuery({ trangThai: locTrangThai });
     const { data: danhSachPhongBan = [] } = useDanhSachPhongBanQuery();
@@ -55,6 +64,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
     const [tuChoiNguoiDung] = useTuChoiNguoiDungMutation();
     const [khoaNguoiDung] = useKhoaNguoiDungMutation();
     const [moKhoaNguoiDung] = useMoKhoaNguoiDungMutation();
+    const [xoaVinhVien] = useXoaVinhVienNguoiDungMutation();
     const [capNhatVaiTro, { isLoading: dangLuuVaiTro }] = useCapNhatVaiTroNguoiDungMutation();
     const [taoNguoiDung, { isLoading: dangTao }] = useTaoNguoiDungMutation();
     const [resetMatKhau] = useResetMatKhauNguoiDungMutation();
@@ -67,19 +77,29 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
     const [formTao] = Form.useForm();
 
     const [nguoiDungXemChiTiet, setNguoiDungXemChiTiet] = useState<NguoiDungListItemModel | null>(null);
+    const [nguoiDungDangPhanQuyenPhieu, setNguoiDungDangPhanQuyenPhieu] = useState<NguoiDungListItemModel | null>(null);
 
     useEffect(() => {
         if (!authV2.isAuthenticated) {
             navigator("/v2/dang-nhap");
+        } else if (!coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_TAI_KHOAN)) {
+            navigator("/v2");
         }
     }, []);
 
-    if (!authV2.isAuthenticated) {
+    if (!authV2.isAuthenticated || !coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_TAI_KHOAN)) {
         return null;
     }
 
     const tenPhongBan = (id?: number) => danhSachPhongBan.find(pb => pb.id === id)?.ten ?? "";
     const tenNhaThau = (id?: number) => danhSachNhaThau.find(nt => nt.id === id)?.ten ?? "";
+
+    const tuKhoa = searchText.trim().toLowerCase();
+    const danhSachDaLoc = tuKhoa
+        ? danhSachNguoiDung.filter(nd =>
+            `${nd.tenDangNhap} ${nd.hoTen} ${nd.email ?? ""} ${nd.soDienThoai ?? ""}`.toLowerCase().includes(tuKhoa)
+        )
+        : danhSachNguoiDung;
 
     const goiHanhDong = async (fn: () => Promise<any>, thanhCong: string, thatBaiMacDinh: string) => {
         try {
@@ -220,6 +240,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
                         </Popconfirm>
                     )}
                     <Button size="small" onClick={() => moModalGanVaiTro(record)}>Gán vai trò</Button>
+                    <Button size="small" onClick={() => setNguoiDungDangPhanQuyenPhieu(record)}>Phân quyền theo Phiếu</Button>
                     <Popconfirm
                         title="Reset mật khẩu"
                         description={`Đặt lại mật khẩu của "${record.tenDangNhap}" về mặc định "HPDQ@1234"?`}
@@ -230,20 +251,40 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
                         <Button size="small" icon={<FaKey />}>Reset mật khẩu</Button>
                     </Popconfirm>
                     <Button size="small" onClick={() => setNguoiDungXemChiTiet(record)}>Chi tiết</Button>
+                    {record.trangThai !== "CHO_DUYET" && record.id !== authV2.nguoiDung?.id && (
+                        <Popconfirm
+                            title="Xóa vĩnh viễn tài khoản"
+                            description={`Xóa HẲN tài khoản "${record.tenDangNhap}" khỏi hệ thống? Không thể hoàn tác. Sẽ bị từ chối nếu tài khoản đã lập/ký phiếu — khóa tài khoản thay vì xóa trong trường hợp đó.`}
+                            okText="Xóa vĩnh viễn"
+                            okButtonProps={{ danger: true }}
+                            cancelText="Hủy"
+                            onConfirm={() => goiHanhDong(() => xoaVinhVien(record.id).unwrap(), "Đã xóa vĩnh viễn tài khoản", "Xóa vĩnh viễn thất bại")}
+                        >
+                            <Button size="small" danger icon={<FaTrash />}>Xóa vĩnh viễn</Button>
+                        </Popconfirm>
+                    )}
                 </Space>
             ),
         },
     ];
 
     return <LayoutV2Component>
-        <div className="flex justify-between items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <h2 className="font-bold text-xl text-zinc-700">QUẢN LÝ TÀI KHOẢN</h2>
             <Button type="primary" onClick={() => setMoModalTao(true)}>Tạo tài khoản</Button>
         </div>
 
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 mb-4">
+            <Input
+                className="w-full sm:w-[280px]"
+                allowClear
+                placeholder="Tìm theo tên đăng nhập/họ tên/email/SĐT..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                prefix={<IoSearchOutline className="text-gray-400" />}
+            />
             <Select
-                className="w-[220px]"
+                className="w-full sm:w-[220px]"
                 allowClear
                 placeholder="-- Tất cả trạng thái --"
                 value={locTrangThai}
@@ -259,7 +300,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
             rowKey="id"
             loading={isFetching}
             columns={columns}
-            dataSource={danhSachNguoiDung}
+            dataSource={danhSachDaLoc}
             scroll={{ x: 1100 }}
         />
 
@@ -280,7 +321,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
                 onChange={(values) => setVaiTroDaChon(values as number[])}
             >
                 {danhSachVaiTro.map(vt => (
-                    <Checkbox key={vt.id} value={vt.id}>{vt.ten}{vt.coQuyenDuyetTk ? " (có quyền duyệt TK)" : ""}</Checkbox>
+                    <Checkbox key={vt.id} value={vt.id}>{vt.ten}{vt.laQuanTriVien ? " (Quản trị viên — toàn quyền)" : ""}</Checkbox>
                 ))}
             </Checkbox.Group>
         </Modal>
@@ -336,7 +377,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
                 <Form.Item label="Vai trò" name="vaiTroIds">
                     <Checkbox.Group className="flex flex-col gap-2">
                         {danhSachVaiTro.map(vt => (
-                            <Checkbox key={vt.id} value={vt.id}>{vt.ten}{vt.coQuyenDuyetTk ? " (có quyền duyệt TK)" : ""}</Checkbox>
+                            <Checkbox key={vt.id} value={vt.id}>{vt.ten}{vt.laQuanTriVien ? " (Quản trị viên — toàn quyền)" : ""}</Checkbox>
                         ))}
                     </Checkbox.Group>
                 </Form.Item>
@@ -349,6 +390,13 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
             tenPhongBan={tenPhongBan}
             tenNhaThau={tenNhaThau}
             onDong={() => setNguoiDungXemChiTiet(null)}
+        />
+
+        {/* Modal Phân quyền theo Phiếu — ký + đánh giá/quản lý tiêu chí, tách
+            biệt hoàn toàn khỏi Vai trò (chỉ còn dùng cho quyền quản trị). */}
+        <PhanQuyenPhieuModal
+            nguoiDung={nguoiDungDangPhanQuyenPhieu}
+            onDong={() => setNguoiDungDangPhanQuyenPhieu(null)}
         />
     </LayoutV2Component>;
 };
@@ -403,7 +451,7 @@ const ChiTietTaiKhoanDrawer: React.FC<ChiTietTaiKhoanDrawerProps> = ({ nguoiDung
             title={`Chi tiết tài khoản — ${nguoiDung?.hoTen ?? ""}`}
             open={!!nguoiDung}
             onClose={onDong}
-            width={520}
+            width="min(520px, 100vw)"
             destroyOnClose
         >
             {nguoiDung && (
@@ -456,6 +504,129 @@ const ChiTietTaiKhoanDrawer: React.FC<ChiTietTaiKhoanDrawerProps> = ({ nguoiDung
                 </div>
             )}
         </Drawer>
+    );
+};
+
+interface PhanQuyenPhieuModalProps {
+    nguoiDung: NguoiDungListItemModel | null;
+    onDong: () => void;
+}
+
+// Khối "Phân quyền theo Phiếu": Ký (gán trực tiếp vào bước MauLuongKy, chỉ
+// hiện các bước đủ điều kiện cấu trúc phòng ban/nhà thầu của user) + Đánh
+// giá/Quản lý tiêu chí (theo LoaiPhieu, không liên quan gì tới Vai trò) —
+// xem 02. Phantich/modules/VaiTro.md mục 9.
+const PhanQuyenPhieuModal: React.FC<PhanQuyenPhieuModalProps> = ({ nguoiDung, onDong }) => {
+    const dispatch = useDispatch();
+    const id = nguoiDung?.id;
+
+    const { data: buocKhaDung = [], isFetching } = useLuongKyKhaDungNguoiDungQuery(id!, { skip: !id });
+    const [capNhatLuongKy, { isLoading: dangLuuLuongKy }] = useCapNhatLuongKyNguoiDungMutation();
+    const [capNhatPhieuQuyen, { isLoading: dangLuuPhieuQuyen }] = useCapNhatPhieuQuyenNguoiDungMutation();
+
+    const [mauLuongKyDaChon, setMauLuongKyDaChon] = useState<number[]>([]);
+    const [phieuQuyenDaChon, setPhieuQuyenDaChon] = useState<Record<string, { duocDanhGia: boolean; duocQuanLyTieuChi: boolean }>>({});
+
+    useEffect(() => {
+        if (!nguoiDung) return;
+        setMauLuongKyDaChon(nguoiDung.danhSachMauLuongKyId ?? []);
+        const map: Record<string, { duocDanhGia: boolean; duocQuanLyTieuChi: boolean }> = {};
+        DS_LOAI_PHIEU.forEach(t => { map[t.value] = { duocDanhGia: false, duocQuanLyTieuChi: false }; });
+        (nguoiDung.phieuQuyen ?? []).forEach(pq => {
+            map[pq.loaiPhieu] = { duocDanhGia: pq.duocDanhGia, duocQuanLyTieuChi: pq.duocQuanLyTieuChi };
+        });
+        setPhieuQuyenDaChon(map);
+    }, [nguoiDung]);
+
+    const toggleBuocKy = (mauLuongKyId: number, checked: boolean) => {
+        setMauLuongKyDaChon(prev => checked ? [...prev, mauLuongKyId] : prev.filter(x => x !== mauLuongKyId));
+    };
+
+    const toggleQuyenPhieu = (loaiPhieu: string, field: "duocDanhGia" | "duocQuanLyTieuChi", checked: boolean) => {
+        setPhieuQuyenDaChon(prev => ({ ...prev, [loaiPhieu]: { ...prev[loaiPhieu], [field]: checked } }));
+    };
+
+    const luu = async () => {
+        if (!id) return;
+        try {
+            await capNhatLuongKy({ id, mauLuongKyIds: mauLuongKyDaChon }).unwrap();
+            const danhSach: NguoiDungPhieuQuyenModel[] = DS_LOAI_PHIEU.map(t => ({
+                loaiPhieu: t.value,
+                duocDanhGia: !!phieuQuyenDaChon[t.value]?.duocDanhGia,
+                duocQuanLyTieuChi: !!phieuQuyenDaChon[t.value]?.duocQuanLyTieuChi,
+            }));
+            await capNhatPhieuQuyen({ id, danhSach }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Cập nhật phân quyền theo Phiếu thành công", messageNotify: "" }));
+            onDong();
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Cập nhật phân quyền thất bại", messageNotify: "" }));
+        }
+    };
+
+    return (
+        <Modal
+            title={`Phân quyền theo Phiếu — ${nguoiDung?.hoTen ?? ""}`}
+            open={!!nguoiDung}
+            onCancel={onDong}
+            onOk={luu}
+            okButtonProps={{ loading: dangLuuLuongKy || dangLuuPhieuQuyen }}
+            okText="Lưu"
+            cancelText="Hủy"
+            width={640}
+            destroyOnClose
+        >
+            <div className="flex flex-col gap-4">
+                {DS_LOAI_PHIEU.map(t => {
+                    const buocCuaPhieu = buocKhaDung.filter(b => b.loaiPhieu === t.value);
+                    const quyen = phieuQuyenDaChon[t.value] ?? { duocDanhGia: false, duocQuanLyTieuChi: false };
+                    return (
+                        <Card key={t.value} size="small" title={tenLoaiPhieu(t.value)} loading={isFetching}>
+                            <div className="flex flex-col gap-2">
+                                <div className="flex gap-4">
+                                    <Checkbox
+                                        checked={quyen.duocDanhGia}
+                                        onChange={(e) => toggleQuyenPhieu(t.value, "duocDanhGia", e.target.checked)}
+                                    >
+                                        Đánh giá / nhập liệu
+                                    </Checkbox>
+                                    <Checkbox
+                                        checked={quyen.duocQuanLyTieuChi}
+                                        onChange={(e) => toggleQuyenPhieu(t.value, "duocQuanLyTieuChi", e.target.checked)}
+                                    >
+                                        Quản lý tiêu chí
+                                    </Checkbox>
+                                </div>
+
+                                {buocCuaPhieu.length > 0 && (
+                                    <div>
+                                        <div className="text-gray-400 text-sm mb-1">Ký:</div>
+                                        <div className="flex flex-col gap-1">
+                                            {buocCuaPhieu.map(b => {
+                                                const o = (
+                                                    <Checkbox
+                                                        key={b.mauLuongKyId}
+                                                        disabled={!b.duDieuKienCauTruc}
+                                                        checked={mauLuongKyDaChon.includes(b.mauLuongKyId)}
+                                                        onChange={(e) => toggleBuocKy(b.mauLuongKyId, e.target.checked)}
+                                                    >
+                                                        Bước {b.buocThuTu} — {b.tenBuoc}
+                                                    </Checkbox>
+                                                );
+                                                return b.duDieuKienCauTruc ? o : (
+                                                    <Tooltip key={b.mauLuongKyId} title="Không đủ điều kiện phòng ban/nhà thầu cho bước này">
+                                                        {o}
+                                                    </Tooltip>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        </Card>
+                    );
+                })}
+            </div>
+        </Modal>
     );
 };
 

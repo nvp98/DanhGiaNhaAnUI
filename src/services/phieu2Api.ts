@@ -18,7 +18,9 @@ export interface Phieu2Request {
     nam: number;
     nhaThauId: number;
     bepAnId?: number;
-    nhaAnId: number;
+    // 1 phiếu có thể gộp nhiều nhà ăn của cùng bếp ăn (đánh giá 1 lần cho
+    // nhiều nhà ăn) — chọn tự do, không ràng buộc theo bepAnId.
+    nhaAnIds: number[];
     thoiGianTu?: string;
     thoiGianDen?: string;
     diaDiem?: string;

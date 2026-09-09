@@ -13,6 +13,16 @@ export interface Phieu3Bang1DongModel {
     tong?: number;
     chinhSuaThuCong: boolean;
     nguonDuLieu?: string;
+    // Các ô đã từng bị sửa tay ("diem1".."diem5", "tong") + giá trị hệ thống
+    // gốc của từng ô đó (trước khi bị sửa) — dùng để tô vàng + tooltip so
+    // sánh trên UI, xem Phieu3FormPage.
+    truongDaSuaTay?: string[];
+    diem1HeThong?: number;
+    diem2HeThong?: number;
+    diem3HeThong?: number;
+    diem4HeThong?: number;
+    diem5HeThong?: number;
+    tongHeThong?: number;
 }
 
 export interface Phieu3Bang2GiaTriModel {

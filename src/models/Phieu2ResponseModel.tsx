@@ -26,5 +26,5 @@ export default interface Phieu2ResponseModel {
     yKienNhaThau?: Phieu2YKienNhaThauModel;
     phieu1?: Phieu1Model;
     phieu1KetLuan?: Phieu1KetLuanModel;
-    nhaAn?: NhaAnModel;
+    danhSachNhaAn: NhaAnModel[];
 }

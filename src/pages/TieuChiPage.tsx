@@ -3,6 +3,7 @@ import { useForm } from "antd/es/form/Form";
 import React, { useEffect, useState } from "react";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import { FiEdit2 } from "react-icons/fi";
+import { IoSearchOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import LayoutV2Component from "../components/LayoutV2Component";
@@ -12,6 +13,7 @@ import { useDanhSachNhomTieuChiQuery } from "../services/nhomTieuChiApi";
 import { useDanhSachTieuChiQuery, useSuaTieuChiMutation, useThemTieuChiMutation, useXoaTieuChiMutation } from "../services/tieuChiApi";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
+import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
 
 const TieuChiPage: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
@@ -30,10 +32,13 @@ const TieuChiPage: React.FC = () => {
     const [moModal, setMoModal] = useState(false);
     const [dangSua, setDangSua] = useState<TieuChiModel | null>(null);
     const [form] = useForm();
+    const [searchText, setSearchText] = useState("");
 
     useEffect(() => {
         if (!authV2.isAuthenticated) {
             navigator("/v2/dang-nhap");
+        } else if (!coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_TIEU_CHI)) {
+            navigator("/v2");
         }
     }, []);
 
@@ -42,7 +47,7 @@ const TieuChiPage: React.FC = () => {
         setLocNhomId(undefined);
     }, [locLoaiPhieu]);
 
-    if (!authV2.isAuthenticated) {
+    if (!authV2.isAuthenticated || !coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_TIEU_CHI)) {
         return null;
     }
 
@@ -99,6 +104,11 @@ const TieuChiPage: React.FC = () => {
             }));
         }
     };
+
+    const tuKhoa = searchText.trim().toLowerCase();
+    const danhSachDaLoc = tuKhoa
+        ? danhSachTieuChi.filter(tc => `${tc.noiDung} ${tenNhom(tc.nhomId)}`.toLowerCase().includes(tuKhoa))
+        : danhSachTieuChi;
 
     const xuLyXoaTieuChi = async (id: number) => {
         try {
@@ -172,16 +182,24 @@ const TieuChiPage: React.FC = () => {
     ];
 
     return <LayoutV2Component>
-        <div className="flex justify-between items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <h2 className="font-bold text-xl text-zinc-700">TIÊU CHÍ ĐÁNH GIÁ (CHECKLIST)</h2>
             <Button type="primary" icon={<FaPlus />} onClick={moModalThem}>
                 Thêm tiêu chí
             </Button>
         </div>
 
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 mb-4">
+            <Input
+                className="w-full sm:w-[280px]"
+                allowClear
+                placeholder="Tìm theo nội dung tiêu chí..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                prefix={<IoSearchOutline className="text-gray-400" />}
+            />
             <Select
-                className="w-[280px]"
+                className="w-full sm:w-[280px]"
                 placeholder="-- Chọn loại phiếu --"
                 value={locLoaiPhieu}
                 onChange={(value) => setLocLoaiPhieu(value)}
@@ -191,7 +209,7 @@ const TieuChiPage: React.FC = () => {
                 ))}
             </Select>
             <Select
-                className="w-[280px]"
+                className="w-full sm:w-[280px]"
                 allowClear
                 placeholder="-- Tất cả nhóm tiêu chí --"
                 value={locNhomId}
@@ -207,7 +225,7 @@ const TieuChiPage: React.FC = () => {
             rowKey="id"
             loading={isFetching}
             columns={columns}
-            dataSource={danhSachTieuChi}
+            dataSource={danhSachDaLoc}
             scroll={{ x: 900 }}
         />
 

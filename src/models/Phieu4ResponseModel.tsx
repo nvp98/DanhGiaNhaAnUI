@@ -26,6 +26,9 @@ export interface Phieu4DongModel {
     congThuc?: string;
     tieuChiId?: number; // dòng được seed từ TieuChi (master) nào, undefined nếu tự thêm
     nhomTieuChiId?: number; // nhóm (master) để render tiêu đề nhóm trên Bảng 2-5
+    diaDiemNhaAnId?: number; // Bảng 4/5: dòng ứng với địa điểm ăn nào
+    nhaThauId?: number; // CHỈ Bảng 5: dòng này thuộc nhà thầu nào (khác Phieu4GiaTriModel.nhaThauId — đó là cột của Bảng 1-3)
+    giaTriChung?: number; // Bảng 4/5: giá trị nhập tay, không chia theo cột nhà thầu
     giaTri: Phieu4GiaTriModel[];
 }
 

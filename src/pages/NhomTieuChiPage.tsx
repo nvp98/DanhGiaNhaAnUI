@@ -3,6 +3,7 @@ import { useForm } from "antd/es/form/Form";
 import React, { useEffect, useState } from "react";
 import { FaPlus, FaTrash } from "react-icons/fa";
 import { FiEdit2 } from "react-icons/fi";
+import { IoSearchOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import LayoutV2Component from "../components/LayoutV2Component";
@@ -10,6 +11,7 @@ import NhomTieuChiModel from "../models/NhomTieuChiModel";
 import { useDanhSachNhomTieuChiQuery, useSuaNhomTieuChiMutation, useThemNhomTieuChiMutation, useXoaNhomTieuChiMutation } from "../services/nhomTieuChiApi";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
+import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
 
 export const DS_LOAI_PHIEU = [
     { value: "PHIEU1", label: "Phiếu 1 - Kiểm tra VSATTP" },
@@ -36,14 +38,17 @@ const NhomTieuChiPage: React.FC = () => {
     const [dangSua, setDangSua] = useState<NhomTieuChiModel | null>(null);
     const [form] = useForm();
     const loaiPhieuDangChon = Form.useWatch("loaiPhieu", form);
+    const [searchText, setSearchText] = useState("");
 
     useEffect(() => {
         if (!authV2.isAuthenticated) {
             navigator("/v2/dang-nhap");
+        } else if (!coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_TIEU_CHI)) {
+            navigator("/v2");
         }
     }, []);
 
-    if (!authV2.isAuthenticated) {
+    if (!authV2.isAuthenticated || !coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_TIEU_CHI)) {
         return null;
     }
 
@@ -94,6 +99,11 @@ const NhomTieuChiPage: React.FC = () => {
             }));
         }
     };
+
+    const tuKhoa = searchText.trim().toLowerCase();
+    const danhSachDaLoc = tuKhoa
+        ? danhSachNhom.filter(n => `${n.ma ?? ""} ${n.ten}`.toLowerCase().includes(tuKhoa))
+        : danhSachNhom;
 
     const xuLyXoaNhom = async (id: number) => {
         try {
@@ -167,16 +177,24 @@ const NhomTieuChiPage: React.FC = () => {
     ];
 
     return <LayoutV2Component>
-        <div className="flex justify-between items-center gap-3 mb-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
             <h2 className="font-bold text-xl text-zinc-700">NHÓM TIÊU CHÍ ĐÁNH GIÁ</h2>
             <Button type="primary" icon={<FaPlus />} onClick={moModalThem}>
                 Thêm nhóm tiêu chí
             </Button>
         </div>
 
-        <div className="flex gap-3 mb-4">
+        <div className="flex flex-wrap gap-3 mb-4">
+            <Input
+                className="w-full sm:w-[280px]"
+                allowClear
+                placeholder="Tìm theo mã/tên nhóm tiêu chí..."
+                value={searchText}
+                onChange={(e) => setSearchText(e.target.value)}
+                prefix={<IoSearchOutline className="text-gray-400" />}
+            />
             <Select
-                className="w-[280px]"
+                className="w-full sm:w-[280px]"
                 allowClear
                 placeholder="-- Tất cả loại phiếu --"
                 value={locLoaiPhieu}
@@ -192,7 +210,7 @@ const NhomTieuChiPage: React.FC = () => {
             rowKey="id"
             loading={isFetching}
             columns={columns}
-            dataSource={danhSachNhom}
+            dataSource={danhSachDaLoc}
             scroll={{ x: 900 }}
         />
 

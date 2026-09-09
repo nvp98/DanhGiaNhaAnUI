@@ -1,5 +1,5 @@
-import { Button, Form, Input, Select, Spin } from "antd";
-import React from "react";
+import { Button, Form, Input, Radio, Select, Spin } from "antd";
+import React, { useState } from "react";
 import { useDispatch } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { useDangKyV2Mutation } from "../services/authApiV2";
@@ -13,6 +13,9 @@ const DangKyPageV2: React.FC = () => {
     const [dangKy, { isLoading }] = useDangKyV2Mutation();
     const { data: danhSachPhongBan = [] } = useDanhSachPhongBanQuery({ dangHoatDong: true });
     const { data: danhSachNhaThau = [] } = useDanhSachNhaThauQuery({ trangThai: "HOAT_DONG" });
+    // Tài khoản chỉ được thuộc 1 trong 2: Phòng ban (nội bộ) hoặc Nhà thầu —
+    // khớp validate mutual-exclusive ở backend (xem AuthService.DangKyAsync).
+    const [loaiTaiKhoan, setLoaiTaiKhoan] = useState<"NOI_BO" | "NHA_THAU">("NOI_BO");
 
     const xuLyDangKy = async (values: any) => {
         try {
@@ -22,8 +25,8 @@ const DangKyPageV2: React.FC = () => {
                 hoTen: values.hoTen,
                 email: values.email || undefined,
                 soDienThoai: values.soDienThoai || undefined,
-                phongBanId: values.phongBanId || undefined,
-                nhaThauId: values.nhaThauId || undefined,
+                phongBanId: loaiTaiKhoan === "NOI_BO" ? (values.phongBanId || undefined) : undefined,
+                nhaThauId: loaiTaiKhoan === "NHA_THAU" ? (values.nhaThauId || undefined) : undefined,
             }).unwrap();
             dispatch(setNotify({
                 typeNotify: "success",
@@ -72,21 +75,34 @@ const DangKyPageV2: React.FC = () => {
                     <Input />
                 </Form.Item>
 
-                <Form.Item label="Phòng ban" name="phongBanId">
-                    <Select allowClear placeholder="-- Chọn phòng ban --" showSearch optionFilterProp="children">
-                        {danhSachPhongBan.map(pb => (
-                            <Select.Option key={pb.id} value={pb.id}>{pb.ten}</Select.Option>
-                        ))}
-                    </Select>
+                <Form.Item label="Loại tài khoản">
+                    <Radio.Group
+                        value={loaiTaiKhoan}
+                        onChange={(e) => setLoaiTaiKhoan(e.target.value)}
+                        options={[
+                            { label: "Nhân viên nội bộ", value: "NOI_BO" },
+                            { label: "Nhà thầu", value: "NHA_THAU" },
+                        ]}
+                    />
                 </Form.Item>
 
-                <Form.Item label="Nhà thầu (nếu là tài khoản nhà thầu)" name="nhaThauId">
-                    <Select allowClear placeholder="-- Chọn nhà thầu --" showSearch optionFilterProp="children">
-                        {danhSachNhaThau.map(nt => (
-                            <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
-                        ))}
-                    </Select>
-                </Form.Item>
+                {loaiTaiKhoan === "NOI_BO" ? (
+                    <Form.Item label="Phòng ban" name="phongBanId" rules={[{ required: true, message: "Vui lòng chọn phòng ban!" }]}>
+                        <Select allowClear placeholder="-- Chọn phòng ban --" showSearch optionFilterProp="children">
+                            {danhSachPhongBan.map(pb => (
+                                <Select.Option key={pb.id} value={pb.id}>{pb.ten}</Select.Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                ) : (
+                    <Form.Item label="Nhà thầu" name="nhaThauId" rules={[{ required: true, message: "Vui lòng chọn nhà thầu!" }]}>
+                        <Select allowClear placeholder="-- Chọn nhà thầu --" showSearch optionFilterProp="children">
+                            {danhSachNhaThau.map(nt => (
+                                <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                            ))}
+                        </Select>
+                    </Form.Item>
+                )}
 
                 <Form.Item className="mt-5 w-[100%]">
                     {

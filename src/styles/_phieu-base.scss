@@ -20,8 +20,24 @@
 
 .phieu-toolbar {
     @include flex-between;
+    flex-wrap: wrap;
     gap: 15px;
     margin-bottom: 20px;
+
+    .phieu-toolbar-title {
+        min-width: 0;
+
+        h2 {
+            overflow-wrap: break-word;
+        }
+    }
+
+    .phieu-toolbar-actions {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
 }
 
 /* ============================================================
@@ -30,6 +46,42 @@
 
 .phieu-header {
     margin-bottom: 15px;
+
+    .phieu-header-meta {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 15px;
+        margin-bottom: 10px;
+
+        .phieu-header-meta-left {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 4px;
+
+            .phieu-header-logo {
+                height: 80px;
+                width: auto;
+                object-fit: contain;
+            }
+
+            .phieu-header-so {
+                font-size: $fs-header-info;
+                font-weight: 700;
+            }
+        }
+
+        .phieu-header-meta-right {
+            text-align: right;
+            font-size: $fs-header-info;
+            line-height: 1.4;
+            font-weight: 600;
+            .info-date{
+                font-style: italic;
+            }
+        }
+    }
 
     .phieu-title {
         text-align: center;
@@ -218,6 +270,12 @@
     margin-top: 10px;
 }
 
+.phieu-thuc-trang-title {
+    font-size: $fs-ket-luan-title;
+    font-weight: 700;
+    margin-bottom: 5px;
+}
+
 /* ============================================================
    KẾT LUẬN / TỔNG HỢP
    ============================================================ */
@@ -361,7 +419,25 @@
                 font-weight: normal;
             }
         }
+
+        // Chọn/ký thay tương tác (chỉ hiện trên màn hình, xem .print-only bên dưới) —
+        // căn trái, khác với phần còn lại của khối chữ ký (text-align: center).
+        .chu-ky-interactive {
+            text-align: left;
+            margin-top: 8px;
+        }
+
+        .chu-ky-ten-duoc-chon {
+            font-weight: 600;
+            margin-bottom: 6px;
+        }
     }
+}
+
+// Ngược với .no-print — ẩn trên màn hình, chỉ hiện khi in (dùng cho dòng ký
+// tay để trống trong PhieuSignatures khi bước đang chờ ký).
+.print-only {
+    display: none;
 }
 
 /* ============================================================
@@ -373,7 +449,30 @@
         padding: 15px;
     }
 
+    .phieu-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+
+        .phieu-toolbar-title h2 {
+            font-size: 18px;
+        }
+
+        .phieu-toolbar-actions {
+            width: 100%;
+        }
+    }
+
     .phieu-header {
+        .phieu-header-meta {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 8px;
+
+            .phieu-header-meta-right {
+                text-align: left;
+            }
+        }
+
         .phieu-title {
             font-size: 20px;
         }
@@ -419,6 +518,10 @@
         display: none !important;
     }
 
+    .print-only {
+        display: block;
+    }
+
     .phieu-a4 {
         width: 100%;
         padding: 0;
@@ -427,6 +530,19 @@
     }
 
     .phieu-header {
+        .phieu-header-meta {
+            margin-bottom: 8px;
+
+            .phieu-header-meta-left .phieu-header-logo {
+                height: 38px;
+            }
+
+            .phieu-header-meta-left .phieu-header-so,
+            .phieu-header-meta-right {
+                font-size: $fs-print-note;
+            }
+        }
+
         .phieu-title {
             font-size: $fs-print-title;
         }

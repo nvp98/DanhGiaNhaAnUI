@@ -9,13 +9,13 @@ import { unsetNotify } from './store/notifycationSlide'
 
 import ErrorPage from './pages/ErrorPage'
 import { useEffect } from 'react'
-import LoginPage from './pages/LoginPage'
-import AdminPage from './pages/AdminPage'
-import DashboardPage from './pages/DashboardPage'
 import DangNhapPageV2 from './pages/DangNhapPageV2'
+import LichSuKhaoSatPageV2 from './pages/LichSuKhaoSatPageV2'
+import DashboardPageV2 from './pages/DashboardPageV2'
 import DangKyPageV2 from './pages/DangKyPageV2'
 import TrangChuV2Page from './pages/TrangChuV2Page'
 import BepAnPageV2 from './pages/BepAnPageV2'
+import DiaDiemNhaAnPageV2 from './pages/DiaDiemNhaAnPageV2'
 import NhaThauPageV2 from './pages/NhaThauPageV2'
 import VaiTroPageV2 from './pages/VaiTroPageV2'
 import PhongBanPageV2 from './pages/PhongBanPageV2'
@@ -39,7 +39,6 @@ import Phieu4FormPage from './pages/Phieu4/Phieu4FormPage'
 type MessageType = 'info' | 'success' | 'error' | 'warning';
 
 function App() {
-  const auth = useSelector((state: RootType) => state.auth)
   const notify = useSelector((state: RootType) => state.notify)
   const [messageApi, contextHolder] = message.useMessage();
   const dispatch = useDispatch();
@@ -61,7 +60,7 @@ function App() {
       callMessage(notify.typeNotify, notify.titleNotify)
     }
    
-  },[auth,notify])
+  },[notify])
 
 
 
@@ -70,13 +69,13 @@ function App() {
     <>
       {contextHolder}
       <Routes>
-      <Route path='/admin' element={<AdminPage/>} />
-      <Route path='/dashboard' element={<DashboardPage/>} />
-      <Route path='/login' element={<LoginPage/>} />
       <Route path='/v2' element={<TrangChuV2Page/>} />
+      <Route path='/v2/lich-su-khao-sat' element={<LichSuKhaoSatPageV2/>} />
+      <Route path='/v2/dashboard' element={<DashboardPageV2/>} />
       <Route path='/v2/dang-nhap' element={<DangNhapPageV2/>} />
       <Route path='/v2/dang-ky' element={<DangKyPageV2/>} />
       <Route path='/v2/bep-an' element={<BepAnPageV2/>} />
+      <Route path='/v2/dia-diem-nha-an' element={<DiaDiemNhaAnPageV2/>} />
       <Route path='/v2/nha-thau' element={<NhaThauPageV2/>} />
       <Route path='/v2/vai-tro' element={<VaiTroPageV2/>} />
       <Route path='/v2/phong-ban' element={<PhongBanPageV2/>} />

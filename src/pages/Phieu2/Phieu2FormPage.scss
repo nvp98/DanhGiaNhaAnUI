@@ -57,6 +57,16 @@
         margin-top: 2px;
     }
 
+    // Ô VSATTP tự động Đạt/Không đạt theo Phiếu 1 liên kết — khóa không cho
+    // bấm sửa tay (xem vsattpTuDongTheoPhieu1 ở Phieu2FormPage.tsx).
+    .o-ket-qua-khoa {
+        cursor: default;
+
+        &:hover {
+            background: none;
+        }
+    }
+
     // Cả ô K-Đạt bấm được (giống ô Đạt) — không còn vùng checkbox nhỏ riêng
     // bên trong phải rà đúng mới bấm được.
     .o-khong-dat {

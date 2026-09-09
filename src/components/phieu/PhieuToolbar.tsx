@@ -1,6 +1,5 @@
-import { Button, Tag } from "antd";
+import { Tag } from "antd";
 import React from "react";
-import { FaPrint } from "react-icons/fa";
 import { mauTrangThaiPhieu, tenTrangThaiPhieu } from "./constants";
 
 export interface PhieuToolbarProps {
@@ -14,13 +13,12 @@ export interface PhieuToolbarProps {
 export const PhieuToolbar: React.FC<PhieuToolbarProps> = ({
     title,
     trangThai,
-    onPrint,
     extraButtons,
     children,
 }) => {
     return (
         <div className="phieu-toolbar no-print pb-4 mb-5 border-b border-zinc-100">
-            <div>
+            <div className="phieu-toolbar-title">
                 {typeof title === "string" ? (
                     <h2 className="font-bold text-xl text-zinc-700 m-0">{title}</h2>
                 ) : (
@@ -28,18 +26,18 @@ export const PhieuToolbar: React.FC<PhieuToolbarProps> = ({
                 )}
             </div>
 
-            <div className="flex items-center gap-2">
+            <div className="phieu-toolbar-actions">
                 {trangThai && (
                     <Tag color={mauTrangThaiPhieu(trangThai)} className="!px-3 !py-1 !text-sm">
                         {tenTrangThaiPhieu(trangThai)}
                     </Tag>
                 )}
 
-                {onPrint && (
+                {/* {onPrint && (
                     <Button icon={<FaPrint />} onClick={onPrint}>
                         In phiếu
                     </Button>
-                )}
+                )} */}
 
                 {extraButtons}
                 {children}

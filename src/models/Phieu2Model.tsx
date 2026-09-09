@@ -5,7 +5,9 @@ export default interface Phieu2Model {
     nam: number;
     nhaThauId: number;
     bepAnId?: number;
-    nhaAnId: number;
+    // Chỉ có ở API danh sách (GET /phieu2) — trang chi tiết dùng
+    // Phieu2ResponseModel.danhSachNhaAn (đầy đủ tên, không chỉ id).
+    nhaAnIds?: number[];
     thoiGianTu?: string;
     thoiGianDen?: string;
     diaDiem?: string;

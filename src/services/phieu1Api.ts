@@ -15,6 +15,7 @@ export interface Phieu1ChiTietRequest {
 export interface Phieu1Request {
     ngayKiemTra: string;
     bepAnId: number;
+    nhaThauId: number;
     phongBanId: number;
     ketLuanGhiChu?: string;
     chiTiet: Phieu1ChiTietRequest[];

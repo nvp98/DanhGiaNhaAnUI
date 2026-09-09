@@ -20,15 +20,13 @@
     }
 }
 
-.phieu4-ten-bang-edit {
-    cursor: pointer;
-    display: inline-flex;
+// Tiêu đề bảng con (3.1/3.2 của Bảng 3) — nhỏ hơn .phieu4-bang-title 1 cấp.
+.phieu4-bang-sub-title {
+    font-weight: 700;
+    font-size: $fs-table;
+    margin-bottom: 5px;
+    display: flex;
     align-items: center;
-    gap: 6px;
-
-    &:hover {
-        color: #004aad;
-    }
 }
 
 // Ma trận nhiều cột nhà thầu có thể tràn bề ngang — cho cuộn riêng, không cho
@@ -124,7 +122,10 @@
     }
 }
 
-.phieu4-bang1-table {
+// Áp dụng chung cho mọi bảng cố định render qua BangCoDinhTable (Bảng 1, 2)
+// — trước đây chỉ scope riêng .phieu4-bang1-table, giờ Bảng 2 cũng dùng
+// cùng class "dong-nhom-bang1" cho dòng header nhóm nên bỏ scope riêng.
+.phieu4-table {
     .dong-nhom-bang1 td {
         font-weight: 700;
     }
