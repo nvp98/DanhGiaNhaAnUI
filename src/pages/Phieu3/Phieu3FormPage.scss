@@ -21,6 +21,17 @@
     font-size: $fs-table;
     line-height: 1.6;
     margin-bottom: 10px;
+
+    // Số hiệu Phiếu 2 / ngày kiểm tra Phiếu 1 — bấm để điều hướng thẳng tới
+    // phiếu chi tiết tương ứng (xem renderDsClickable ở Phieu3FormPage.tsx).
+    .lien-ket-phieu {
+        color: #004aad;
+        cursor: pointer;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
 }
 
 .phieu3-bang-title {
@@ -71,4 +82,37 @@
 
 .no-print-mb {
     margin-bottom: 5px;
+}
+
+.phieu-y-kien {
+    .ghi-chu-cell-wrapper {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        width: 100%;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #fff;
+
+        .ghi-chu-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ghi-chu-btn-edit {
+            flex-shrink: 0;
+            padding: 0 4px;
+            height: 24px;
+            line-height: 24px;
+            color: #004aad;
+            border-color: #d9d9d9;
+
+            &:hover {
+                color: #002b66;
+                border-color: #004aad;
+            }
+        }
+    }
 }

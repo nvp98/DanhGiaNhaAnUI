@@ -1,3 +1,5 @@
+import { DoanRequest } from '../models/DoanModel';
+import PagedResultModel from '../models/PagedResultModel';
 import Phieu3Model from '../models/Phieu3Model';
 import Phieu3ResponseModel from '../models/Phieu3ResponseModel';
 import { apiSliceV2 } from './apiSliceV2';
@@ -26,6 +28,10 @@ export interface Phieu3Request {
     thang: number;
     nam: number;
     nhaThauId: number;
+    // Danh sách "đoạn" thời gian + địa điểm khai báo ngay lúc lập phiếu —
+    // có thể thêm/bớt sau qua themDoanPhieu3/xoaDoanPhieu3 (chỉ khi phiếu
+    // còn Nháp/Từ chối).
+    doan: DoanRequest[];
 }
 
 export interface Phieu3SuaRequest {
@@ -42,15 +48,21 @@ export interface DanhSachPhieu3Params {
     thang?: number;
     nam?: number;
     trangThai?: string;
+    tuNgay?: string;
+    denNgay?: string;
+    tuKhoa?: string;
+    chiCuaToi?: boolean;
+    page?: number;
+    pageSize?: number;
 }
 
 export const phieu3Api = apiSliceV2.injectEndpoints({
     endpoints: (builder) => ({
-        danhSachPhieu3: builder.query<Phieu3Model[], DanhSachPhieu3Params | void>({
+        danhSachPhieu3: builder.query<PagedResultModel<Phieu3Model>, DanhSachPhieu3Params | void>({
             query: (params) => ({ url: '/phieu3', params: params ?? {} }),
             providesTags: (result) =>
                 result
-                    ? [...result.map(({ id }) => ({ type: 'Phieu3' as const, id })), { type: 'Phieu3' as const, id: 'LIST' }]
+                    ? [...result.items.map(({ id }) => ({ type: 'Phieu3' as const, id })), { type: 'Phieu3' as const, id: 'LIST' }]
                     : [{ type: 'Phieu3' as const, id: 'LIST' }],
         }),
         chiTietPhieu3: builder.query<Phieu3ResponseModel, number>({
@@ -85,6 +97,14 @@ export const phieu3Api = apiSliceV2.injectEndpoints({
             query: ({ id, body }) => ({ url: `/phieu3/${id}/y-kien-nha-thau`, method: 'POST', body }),
             invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu3', id }],
         }),
+        themDoanPhieu3: builder.mutation<Phieu3ResponseModel, { id: number; body: DoanRequest }>({
+            query: ({ id, body }) => ({ url: `/phieu3/${id}/doan`, method: 'POST', body }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu3', id }],
+        }),
+        xoaDoanPhieu3: builder.mutation<Phieu3ResponseModel, { id: number; doanId: number }>({
+            query: ({ id, doanId }) => ({ url: `/phieu3/${id}/doan/${doanId}`, method: 'DELETE' }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu3', id }],
+        }),
     }),
 });
 
@@ -98,4 +118,6 @@ export const {
     useGuiKyPhieu3Mutation,
     useDongBoTrangThaiPhieu3Mutation,
     usePhanHoiYKienNhaThauPhieu3Mutation,
+    useThemDoanPhieu3Mutation,
+    useXoaDoanPhieu3Mutation,
 } = phieu3Api;

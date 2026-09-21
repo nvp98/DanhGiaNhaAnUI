@@ -60,24 +60,32 @@ export const PHIEU4_BANG1_CONFIG: BangCoDinhConfig = {
 //   nhomSo=3           -> Stt 13  ("Điểm đánh giá trung bình... theo trọng
 //                                  số", nhập tay hoàn toàn -> dongCha)
 // Thứ tự hiển thị (soLaMa) theo yêu cầu: P.ATMT (I) -> P.ĐN (II) -> trọng số (III).
-const TEN_TIEU_CHI_BANG2 = [
-    "Tuân thủ đúng quy định về vệ sinh an toàn thực phẩm",
-    "Tuân thủ định lượng theo thực đơn đã được phê duyệt",
-    "Đa dạng thực đơn",
-    "Tuân thủ hợp đồng, bản cam kết, quy trình báo cáo",
-    "Thái độ phối hợp, cầu thị cải tiến",
-    "Phản hồi sự cố, xử lý khiếu nại nhanh chóng",
+// Mã + tên 6 tiêu chí, ĐÚNG THỨ TỰ Stt 1-6 của Phieu4Service.TieuChiBang2 —
+// mã PHẢI khớp Phieu2Service.TieuChiCoDinh (mã tiêu chí Phiếu 2) và cùng ý
+// nghĩa với Phieu3Service.AnhXaTcSangPhieu2 (TC1->VSATTP, TC2->
+// DINH_LUONG_THUC_DON, TC4->DIEU_KHOAN_KHAC, TC5->THAI_DO_PHOI_HOP, TC6->
+// PHAN_HOI_SU_CO). "DA_DANG_THUC_DON" không có ở Phiếu 2 (không có nguồn tự
+// động, luôn nhập tay ở cả Phiếu 3/4 — chỉ đặt mã ở đây để đối chiếu, không
+// dùng để tra cứu Phiếu 2). Sửa thứ tự/thêm/bớt tiêu chí ở đây thì PHẢI sửa
+// TieuChiBang2 bên Phieu4Service.cs theo đúng cùng thứ tự.
+const TIEU_CHI_BANG2 = [
+    { ma: "VSATTP", ten: "Tuân thủ đúng quy định về vệ sinh an toàn thực phẩm" },
+    { ma: "DINH_LUONG_THUC_DON", ten: "Tuân thủ định lượng theo thực đơn đã được phê duyệt" },
+    { ma: "DA_DANG_THUC_DON", ten: "Đa dạng thực đơn" },
+    { ma: "DIEU_KHOAN_KHAC", ten: "Tuân thủ hợp đồng, bản cam kết, quy trình báo cáo" },
+    { ma: "THAI_DO_PHOI_HOP", ten: "Thái độ phối hợp, cầu thị cải tiến" },
+    { ma: "PHAN_HOI_SU_CO", ten: "Phản hồi sự cố, xử lý khiếu nại nhanh chóng" },
 ];
 export const PHIEU4_BANG2_CONFIG: BangCoDinhConfig = {
     key: "phieu4_bang2",
     nhom: [
         {
             nhomSo: 1, soLaMa: "I", nhanNhom: NHAN_NHOM_BANG2[2],
-            dong: [{ nhomSo: 2, stt: 7, label: TEN_TIEU_CHI_BANG2[0] }],
+            dong: [{ nhomSo: 2, stt: 7, label: TIEU_CHI_BANG2[0].ten, maTieuChi: TIEU_CHI_BANG2[0].ma }],
         },
         {
             nhomSo: 2, soLaMa: "II", nhanNhom: NHAN_NHOM_BANG2[1],
-            dong: TEN_TIEU_CHI_BANG2.map((label, i) => ({ nhomSo: 1, stt: i + 1, label })),
+            dong: TIEU_CHI_BANG2.map((tc, i) => ({ nhomSo: 1, stt: i + 1, label: tc.ten, maTieuChi: tc.ma })),
         },
         {
             nhomSo: 3, soLaMa: "III", nhanNhom: NHAN_NHOM_BANG2[3],

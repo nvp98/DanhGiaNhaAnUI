@@ -1,8 +1,9 @@
-import { Button } from "antd";
+import { Button, message } from "antd";
 import React, { useEffect, useRef, useState } from "react";
 import { Editor } from "@tinymce/tinymce-react";
 import { FaSave } from "react-icons/fa";
-import LinkServerV2 from "../../services/LinkServerV2";
+import LinkServerV2, { ApiRootV2 } from "../../services/LinkServerV2";
+import { dinhDangDungLuong, nenAnhTruocKhiUpload } from "./nenAnhUpload";
 
 export interface TinyMceInlineProps {
     value: string;
@@ -58,48 +59,60 @@ export const TinyMceInline: React.FC<TinyMceInlineProps> = ({
     };
 
     const imagesUploadHandler = (blobInfo: any, progress: (percent: number) => void): Promise<string> => {
-        return new Promise((resolve, reject) => {
-            const formData = new FormData();
-            formData.append("upload", blobInfo.blob(), blobInfo.filename());
-
-            const token = localStorage.getItem("token");
-            const xhr = new XMLHttpRequest();
-            xhr.withCredentials = false;
-            xhr.open("POST", `${LinkServerV2}/tep-dinh-kem/ckeditor`);
-
-            if (token) {
-                xhr.setRequestHeader("Authorization", `Bearer ${token}`);
+        return nenAnhTruocKhiUpload(blobInfo.blob(), blobInfo.filename()).then((ketQuaNen) => {
+            const { blob, tenFile, daNen, kichThuocGoc, kichThuocSauNen } = ketQuaNen;
+            if (daNen) {
+                message.info(
+                    `Đã nén ảnh từ ${dinhDangDungLuong(kichThuocGoc)} xuống ${dinhDangDungLuong(kichThuocSauNen)} trước khi tải lên.`
+                );
             }
 
-            xhr.upload.onprogress = (e) => {
-                if (e.total > 0) {
-                    progress((e.loaded / e.total) * 100);
-                }
-            };
+            return new Promise<string>((resolve, reject) => {
+                const formData = new FormData();
+                formData.append("upload", blob, tenFile);
 
-            xhr.onload = () => {
-                if (xhr.status < 200 || xhr.status >= 300) {
-                    reject(`Upload thất bại với mã lỗi HTTP: ${xhr.status}`);
-                    return;
+                const token = localStorage.getItem("token");
+                const xhr = new XMLHttpRequest();
+                xhr.withCredentials = false;
+                xhr.open("POST", `${LinkServerV2}/tep-dinh-kem/ckeditor`);
+
+                if (token) {
+                    xhr.setRequestHeader("Authorization", `Bearer ${token}`);
                 }
 
-                try {
-                    const json = JSON.parse(xhr.responseText);
-                    if (!json || typeof json.url !== "string") {
-                        reject(`Phản hồi từ server không hợp lệ: ${xhr.responseText}`);
+                xhr.upload.onprogress = (e) => {
+                    if (e.total > 0) {
+                        progress((e.loaded / e.total) * 100);
+                    }
+                };
+
+                xhr.onload = () => {
+                    if (xhr.status < 200 || xhr.status >= 300) {
+                        reject(`Upload thất bại với mã lỗi HTTP: ${xhr.status}`);
                         return;
                     }
-                    resolve(json.url);
-                } catch (e: any) {
-                    reject(`Lỗi phân tích phản hồi upload: ${e.message}`);
-                }
-            };
 
-            xhr.onerror = () => {
-                reject("Lỗi mạng khi thực hiện tải hình ảnh lên server");
-            };
+                    try {
+                        const json = JSON.parse(xhr.responseText);
+                        if (!json || typeof json.url !== "string") {
+                            reject(`Phản hồi từ server không hợp lệ: ${xhr.responseText}`);
+                            return;
+                        }
+                        // json.url là đường dẫn tương đối (vd /uploads/dinh-kem/xxx.png) —
+                        // ghép ApiRootV2 (suy ra từ VITE_BASE_API) để ra URL tuyệt đối nhúng
+                        // vào nội dung, tương tự cách hiển thị ảnh chữ ký ở ProfilePageV2.tsx.
+                        resolve(`${ApiRootV2}${json.url}`);
+                    } catch (e: any) {
+                        reject(`Lỗi phân tích phản hồi upload: ${e.message}`);
+                    }
+                };
 
-            xhr.send(formData);
+                xhr.onerror = () => {
+                    reject("Lỗi mạng khi thực hiện tải hình ảnh lên server");
+                };
+
+                xhr.send(formData);
+            });
         });
     };
 

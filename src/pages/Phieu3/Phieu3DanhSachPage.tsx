@@ -1,25 +1,63 @@
-import { Button, Modal, Select, Table, TableColumnsType, Tag } from "antd";
+import { Button, Checkbox, DatePicker, Input, Modal, Popconfirm, Select, Table, TableColumnsType, Tag } from "antd";
+import { Dayjs } from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FaChartBar } from "react-icons/fa";
+import { FaChartBar, FaSearch, FaTrash } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import LayoutV2Component from "../../components/LayoutV2Component";
 import { mauTrangThaiPhieu, tenTrangThaiPhieu, DS_TRANG_THAI_PHIEU, PhieuFilterBar, PhieuListHeader } from "../../components/phieu";
 import Phieu3Model from "../../models/Phieu3Model";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
-import { useDanhSachPhieu3Query, useThemPhieu3Mutation } from "../../services/phieu3Api";
+import { useDanhSachPhieu3Query, useThemPhieu3Mutation, useXoaPhieu3Mutation } from "../../services/phieu3Api";
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
+
+const { RangePicker } = DatePicker;
+
+interface BoLocDaApDung {
+    nhaThauId?: number;
+    thang?: number;
+    nam?: number;
+    trangThai?: string;
+    tuNgay?: string;
+    denNgay?: string;
+    tuKhoa?: string;
+    chiCuaToi?: boolean;
+    page: number;
+    pageSize: number;
+}
+
+const BO_LOC_MAC_DINH: BoLocDaApDung = { page: 1, pageSize: 10 };
 
 const Phieu3DanhSachPage: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
     const dispatch = useDispatch();
     const navigator = useNavigate();
 
-    const [locNhaThauId, setLocNhaThauId] = useState<number | undefined>(undefined);
-    const [locThang, setLocThang] = useState<number | undefined>(undefined);
-    const [locNam, setLocNam] = useState<number | undefined>(undefined);
-    const [locTrangThai, setLocTrangThai] = useState<string | undefined>(undefined);
+    const [nhapNhaThauId, setNhapNhaThauId] = useState<number | undefined>(undefined);
+    const [nhapThang, setNhapThang] = useState<number | undefined>(undefined);
+    const [nhapNam, setNhapNam] = useState<number | undefined>(undefined);
+    const [nhapTrangThai, setNhapTrangThai] = useState<string | undefined>(undefined);
+    const [nhapTuKhoa, setNhapTuKhoa] = useState("");
+    const [nhapKhoangNgay, setNhapKhoangNgay] = useState<[Dayjs | null, Dayjs | null] | null>(null);
+    const [nhapChiCuaToi, setNhapChiCuaToi] = useState(false);
+
+    const [boLoc, setBoLoc] = useState<BoLocDaApDung>(BO_LOC_MAC_DINH);
+
+    const xuLyTim = () => {
+        setBoLoc({
+            nhaThauId: nhapNhaThauId,
+            thang: nhapThang,
+            nam: nhapNam,
+            trangThai: nhapTrangThai,
+            tuNgay: nhapKhoangNgay?.[0]?.format("YYYY-MM-DD"),
+            denNgay: nhapKhoangNgay?.[1]?.format("YYYY-MM-DD"),
+            tuKhoa: nhapTuKhoa.trim() || undefined,
+            chiCuaToi: nhapChiCuaToi,
+            page: 1,
+            pageSize: boLoc.pageSize,
+        });
+    };
 
     // Popup "Lập báo cáo mới" — gọn ngay trên trang danh sách thay vì
     // chuyển sang /phieu3/moi (trang riêng chỉ để nhập đúng 3 trường này).
@@ -34,12 +72,26 @@ const Phieu3DanhSachPage: React.FC = () => {
     // đã ép lọc theo claim nha_thau_id, xem Phieu3Controller/GetNhaThauId().
     const laTaiKhoanNhaThau = !!authV2.nguoiDung?.nhaThauId;
 
-    const { data: danhSachPhieu = [], isFetching } = useDanhSachPhieu3Query({
-        nhaThauId: laTaiKhoanNhaThau ? authV2.nguoiDung?.nhaThauId : locNhaThauId,
-        thang: locThang,
-        nam: locNam,
-        trangThai: locTrangThai,
+    // Admin xóa được báo cáo NGAY TỪ DANH SÁCH, ở BẤT KỲ trạng thái nào (khác
+    // nút "Xóa phiếu" ở trang chi tiết chỉ cho báo cáo Nháp) — backend cũng tự
+    // dọn dẹp dữ liệu luồng ký (ChuKyPhieu) liên quan, xem Phieu3Service.XoaAsync.
+    const laAdmin = !!authV2.nguoiDung?.laAdmin;
+    const [xoaPhieu3] = useXoaPhieu3Mutation();
+
+    const xuLyXoaPhieu = async (id: number) => {
+        try {
+            await xoaPhieu3(id).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã xóa báo cáo", messageNotify: "" }));
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Xóa báo cáo thất bại", messageNotify: "" }));
+        }
+    };
+
+    const { data, isFetching } = useDanhSachPhieu3Query({
+        ...boLoc,
+        nhaThauId: laTaiKhoanNhaThau ? authV2.nguoiDung?.nhaThauId : boLoc.nhaThauId,
     });
+    const danhSachPhieu = data?.items ?? [];
     const { data: danhSachNhaThau = [] } = useDanhSachNhaThauQuery();
 
     useEffect(() => {
@@ -58,8 +110,8 @@ const Phieu3DanhSachPage: React.FC = () => {
             return;
         }
         try {
-            const ketQua = await themPhieu3({ thang: moThang, nam: moNam, nhaThauId: moNhaThauId }).unwrap();
-            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lập báo cáo", messageNotify: "" }));
+            const ketQua = await themPhieu3({ thang: moThang, nam: moNam, nhaThauId: moNhaThauId, doan: [] }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lập báo cáo — vào chi tiết báo cáo để khai báo đoạn thời gian/địa điểm phụ trách", messageNotify: "" }));
             setMoPopupTaoMoi(false);
             navigator(`/phieu3/${ketQua.phieu.id}`);
         } catch (error: any) {
@@ -91,6 +143,7 @@ const Phieu3DanhSachPage: React.FC = () => {
             title: 'Nhà thầu',
             dataIndex: 'nhaThauId',
             key: 'nhaThauId',
+            width: 220,
             render: (id) => tenNhaThau(id),
         },
         {
@@ -100,6 +153,23 @@ const Phieu3DanhSachPage: React.FC = () => {
             width: 140,
             render: (trangThai) => <Tag color={mauTrangThaiPhieu(trangThai)}>{tenTrangThaiPhieu(trangThai)}</Tag>,
         },
+        ...(laAdmin ? [{
+            title: 'Thao tác',
+            key: 'thaoTac',
+            width: 90,
+            fixed: 'right' as const,
+            render: (_: unknown, record: Phieu3Model) => (
+                <Popconfirm
+                    title="Xóa báo cáo"
+                    description="Admin xóa báo cáo này (kèm dữ liệu luồng ký liên quan)?"
+                    okText="Xóa"
+                    cancelText="Hủy"
+                    onConfirm={() => xuLyXoaPhieu(record.id)}
+                >
+                    <Button danger size="small" icon={<FaTrash />} />
+                </Popconfirm>
+            ),
+        }] : []),
     ];
 
     return <LayoutV2Component>
@@ -116,6 +186,15 @@ const Phieu3DanhSachPage: React.FC = () => {
         />
 
         <PhieuFilterBar>
+            <Input
+                className="w-full sm:w-[220px]"
+                allowClear
+                placeholder="Tìm theo số hiệu..."
+                prefix={<FaSearch className="text-gray-400" />}
+                value={nhapTuKhoa}
+                onChange={(e) => setNhapTuKhoa(e.target.value)}
+                onPressEnter={xuLyTim}
+            />
             {!laTaiKhoanNhaThau && (
                 <Select
                     className="w-full sm:w-[220px]"
@@ -123,8 +202,8 @@ const Phieu3DanhSachPage: React.FC = () => {
                     placeholder="-- Lọc theo nhà thầu --"
                     showSearch
                     optionFilterProp="children"
-                    value={locNhaThauId}
-                    onChange={(value) => setLocNhaThauId(value)}
+                    value={nhapNhaThauId}
+                    onChange={(value) => setNhapNhaThauId(value)}
                 >
                     {danhSachNhaThau.map(nt => (
                         <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
@@ -135,8 +214,8 @@ const Phieu3DanhSachPage: React.FC = () => {
                 className="w-full sm:w-[140px]"
                 allowClear
                 placeholder="-- Tháng --"
-                value={locThang}
-                onChange={(value) => setLocThang(value)}
+                value={nhapThang}
+                onChange={(value) => setNhapThang(value)}
             >
                 {Array.from({ length: 12 }, (_, i) => i + 1).map(t => (
                     <Select.Option key={t} value={t}>Tháng {t}</Select.Option>
@@ -146,8 +225,8 @@ const Phieu3DanhSachPage: React.FC = () => {
                 className="w-full sm:w-[120px]"
                 allowClear
                 placeholder="-- Năm --"
-                value={locNam}
-                onChange={(value) => setLocNam(value)}
+                value={nhapNam}
+                onChange={(value) => setNhapNam(value)}
             >
                 {danhSachNam.map(n => (
                     <Select.Option key={n} value={n}>{n}</Select.Option>
@@ -157,13 +236,30 @@ const Phieu3DanhSachPage: React.FC = () => {
                 className="w-full sm:w-[200px]"
                 allowClear
                 placeholder="-- Lọc theo trạng thái --"
-                value={locTrangThai}
-                onChange={(value) => setLocTrangThai(value)}
+                value={nhapTrangThai}
+                onChange={(value) => setNhapTrangThai(value)}
             >
                 {DS_TRANG_THAI_PHIEU.map(t => (
                     <Select.Option key={t.value} value={t.value}>{t.label}</Select.Option>
                 ))}
             </Select>
+            {/* Phiếu 3 là báo cáo THEO THÁNG, không có ngày kiểm tra cụ thể —
+                lọc theo NGÀY TẠO báo cáo (xem Phieu3Service.DanhSachAsync). */}
+            <RangePicker
+                className="w-full sm:w-[260px]"
+                format="DD/MM/YYYY"
+                placeholder={["Từ ngày tạo", "Đến ngày tạo"]}
+                value={nhapKhoangNgay}
+                onChange={(v) => setNhapKhoangNgay(v as [Dayjs | null, Dayjs | null] | null)}
+            />
+            {!laTaiKhoanNhaThau && (
+                <Checkbox checked={nhapChiCuaToi} onChange={(e) => setNhapChiCuaToi(e.target.checked)}>
+                    Chỉ phiếu tôi lập
+                </Checkbox>
+            )}
+            <Button type="primary" icon={<FaSearch />} onClick={xuLyTim}>
+                Tìm
+            </Button>
         </PhieuFilterBar>
 
         <div className="rounded-xl overflow-hidden border border-zinc-100">
@@ -172,7 +268,15 @@ const Phieu3DanhSachPage: React.FC = () => {
                 loading={isFetching}
                 columns={columns}
                 dataSource={danhSachPhieu}
-                scroll={{ x: 700 }}
+                scroll={{ x: 900 }}
+                pagination={{
+                    current: boLoc.page,
+                    pageSize: boLoc.pageSize,
+                    total: data?.totalCount ?? 0,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tổng ${total} báo cáo`,
+                    onChange: (page, pageSize) => setBoLoc(prev => ({ ...prev, page, pageSize })),
+                }}
             />
         </div>
 

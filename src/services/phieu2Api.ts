@@ -1,3 +1,4 @@
+import PagedResultModel from '../models/PagedResultModel';
 import Phieu1Model from '../models/Phieu1Model';
 import Phieu2Model from '../models/Phieu2Model';
 import Phieu2ResponseModel from '../models/Phieu2ResponseModel';
@@ -41,15 +42,21 @@ export interface DanhSachPhieu2Params {
     thang?: number;
     nam?: number;
     trangThai?: string;
+    tuNgay?: string;
+    denNgay?: string;
+    tuKhoa?: string;
+    chiCuaToi?: boolean;
+    page?: number;
+    pageSize?: number;
 }
 
 export const phieu2Api = apiSliceV2.injectEndpoints({
     endpoints: (builder) => ({
-        danhSachPhieu2: builder.query<Phieu2Model[], DanhSachPhieu2Params | void>({
+        danhSachPhieu2: builder.query<PagedResultModel<Phieu2Model>, DanhSachPhieu2Params | void>({
             query: (params) => ({ url: '/phieu2', params: params ?? {} }),
             providesTags: (result) =>
                 result
-                    ? [...result.map(({ id }) => ({ type: 'Phieu2' as const, id })), { type: 'Phieu2' as const, id: 'LIST' }]
+                    ? [...result.items.map(({ id }) => ({ type: 'Phieu2' as const, id })), { type: 'Phieu2' as const, id: 'LIST' }]
                     : [{ type: 'Phieu2' as const, id: 'LIST' }],
         }),
         chiTietPhieu2: builder.query<Phieu2ResponseModel, number>({

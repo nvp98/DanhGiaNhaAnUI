@@ -93,6 +93,39 @@
         font-weight: 700;
         margin-bottom: 5px;
     }
+
+    // Khối preview + icon sửa (giống ô Ghi chú "Không đạt" ở _phieu-base.scss
+    // nhưng style riêng vì đây là khối đứng ngoài bảng, không phải 1 ô/td).
+    .ghi-chu-cell-wrapper {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        width: 100%;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #fff;
+
+        .ghi-chu-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ghi-chu-btn-edit {
+            flex-shrink: 0;
+            padding: 0 4px;
+            height: 24px;
+            line-height: 24px;
+            color: #004aad;
+            border-color: #d9d9d9;
+
+            &:hover {
+                color: #002b66;
+                border-color: #004aad;
+            }
+        }
+    }
 }
 
 .phieu-ghi-chu-footer {

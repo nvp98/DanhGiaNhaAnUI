@@ -1,11 +1,24 @@
+import { DoanRequest } from '../models/DoanModel';
+import PagedResultModel from '../models/PagedResultModel';
 import Phieu4Model from '../models/Phieu4Model';
 import Phieu4ResponseModel from '../models/Phieu4ResponseModel';
 import { apiSliceV2 } from './apiSliceV2';
 
+// 1 cột nhà thầu + bộ đoạn thời gian/địa điểm CỦA RIÊNG cột đó (tương đương
+// 1 "Phiếu 3 con") — thay cho "nhaThauIds: number[]" phẳng cũ.
+export interface Phieu4NhaThauRequest {
+    nhaThauId: number;
+    doan: DoanRequest[];
+}
+
 export interface Phieu4Request {
+    // Khoảng ngày lập phiếu — chọn TRỰC TIẾP lúc tạo (RangePicker ở popup/
+    // form tạo mới), CỐ ĐỊNH trong suốt vòng đời phiếu. Mọi đoạn khai báo
+    // (lúc tạo lẫn thêm sau) phải nằm trong khoảng này — xem
+    // Phieu4Service.KiemTraDoanHopLe, DoanBuilder ngayToiThieu/ngayToiDa.
     tuNgay: string;
     denNgay: string;
-    nhaThauIds: number[];
+    nhaThau: Phieu4NhaThauRequest[];
 }
 
 export interface Phieu4GiaTriItem {
@@ -35,15 +48,21 @@ export interface Phieu4ThemNhaThauRequest {
 
 export interface DanhSachPhieu4Params {
     trangThai?: string;
+    tuNgay?: string;
+    denNgay?: string;
+    tuKhoa?: string;
+    chiCuaToi?: boolean;
+    page?: number;
+    pageSize?: number;
 }
 
 export const phieu4Api = apiSliceV2.injectEndpoints({
     endpoints: (builder) => ({
-        danhSachPhieu4: builder.query<Phieu4Model[], DanhSachPhieu4Params | void>({
+        danhSachPhieu4: builder.query<PagedResultModel<Phieu4Model>, DanhSachPhieu4Params | void>({
             query: (params) => ({ url: '/phieu4', params: params ?? {} }),
             providesTags: (result) =>
                 result
-                    ? [...result.map(({ id }) => ({ type: 'Phieu4' as const, id })), { type: 'Phieu4' as const, id: 'LIST' }]
+                    ? [...result.items.map(({ id }) => ({ type: 'Phieu4' as const, id })), { type: 'Phieu4' as const, id: 'LIST' }]
                     : [{ type: 'Phieu4' as const, id: 'LIST' }],
         }),
         chiTietPhieu4: builder.query<Phieu4ResponseModel, number>({
@@ -68,6 +87,14 @@ export const phieu4Api = apiSliceV2.injectEndpoints({
         }),
         xoaNhaThauPhieu4: builder.mutation<Phieu4ResponseModel, { id: number; nhaThauId: number }>({
             query: ({ id, nhaThauId }) => ({ url: `/phieu4/${id}/nha-thau/${nhaThauId}`, method: 'DELETE' }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu4', id }],
+        }),
+        themDoanPhieu4: builder.mutation<Phieu4ResponseModel, { id: number; nhaThauId: number; body: DoanRequest }>({
+            query: ({ id, nhaThauId, body }) => ({ url: `/phieu4/${id}/nha-thau/${nhaThauId}/doan`, method: 'POST', body }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu4', id }],
+        }),
+        xoaDoanPhieu4: builder.mutation<Phieu4ResponseModel, { id: number; nhaThauId: number; doanId: number }>({
+            query: ({ id, nhaThauId, doanId }) => ({ url: `/phieu4/${id}/nha-thau/${nhaThauId}/doan/${doanId}`, method: 'DELETE' }),
             invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu4', id }],
         }),
         capNhatGiaTriPhieu4: builder.mutation<Phieu4ResponseModel, { id: number; body: Phieu4CapNhatGiaTriRequest }>({
@@ -97,6 +124,8 @@ export const {
     useTinhLaiPhieu4Mutation,
     useThemNhaThauPhieu4Mutation,
     useXoaNhaThauPhieu4Mutation,
+    useThemDoanPhieu4Mutation,
+    useXoaDoanPhieu4Mutation,
     useCapNhatGiaTriPhieu4Mutation,
     useSuaBangPhieu4Mutation,
     useGuiKyPhieu4Mutation,

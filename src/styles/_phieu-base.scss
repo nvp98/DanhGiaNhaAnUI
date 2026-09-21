@@ -216,37 +216,6 @@
                 }
             }
         }
-
-        .ghi-chu-rich-preview {
-            font-size: 13px;
-            line-height: 1.35;
-            word-break: break-word;
-
-            p {
-                margin: 0 0 4px 0;
-                &:last-child {
-                    margin-bottom: 0;
-                }
-            }
-
-            img {
-                max-height: 50px;
-                max-width: 80px;
-                object-fit: cover;
-                margin: 2px 4px 2px 0;
-                border: 1px solid #d9d9d9;
-                border-radius: 3px;
-                display: inline-block;
-                vertical-align: middle;
-                cursor: zoom-in;
-                transition: border-color 0.15s, transform 0.15s;
-
-                &:hover {
-                    border-color: #004aad;
-                    transform: scale(1.05);
-                }
-            }
-        }
     }
 
     .ant-input,
@@ -263,6 +232,41 @@
     .input-table {
         padding: 0 !important;
         width: 100%;
+    }
+}
+
+// Preview ghi chú HTML (soạn từ TinyMCE) — dùng ở nhiều chỗ khác nhau (ô Ghi
+// chú từng dòng checklist trong .phieu-table, ô Ghi chú Kết luận, khối Ý kiến
+// đứng ngoài bảng...) nên để top-level, không nest theo 1 class cha cụ thể
+// nào, tránh mỗi trang phải tự khai báo lại hiệu ứng hover phóng to ảnh.
+.ghi-chu-rich-preview {
+    font-size: 13px;
+    line-height: 1.35;
+    word-break: break-word;
+
+    p {
+        margin: 0 0 4px 0;
+        &:last-child {
+            margin-bottom: 0;
+        }
+    }
+
+    img {
+        max-height: 50px;
+        max-width: 80px;
+        object-fit: cover;
+        margin: 2px 4px 2px 0;
+        border: 1px solid #d9d9d9;
+        border-radius: 3px;
+        display: inline-block;
+        vertical-align: middle;
+        cursor: zoom-in;
+        transition: border-color 0.15s, transform 0.15s;
+
+        &:hover {
+            border-color: #004aad;
+            transform: scale(1.05);
+        }
     }
 }
 
@@ -320,30 +324,30 @@
                 font-size: $fs-ket-luan-table;
                 padding: 0;
             }
-        }
-    }
 
-    .ket-luan-ghi-chu {
-        margin-top: 10px;
-        display: flex;
-        gap: 8px;
-        align-items: flex-start;
-        font-size: $fs-table;
+            .ghi-chu-cell-wrapper {
+                display: flex;
+                align-items: flex-start;
+                gap: 4px;
+                width: 100%;
 
-        > strong {
-            min-width: 60px;
-        }
+                .ghi-chu-content {
+                    flex: 1;
+                    min-width: 0;
+                }
 
-        .ghi-chu-print {
-            flex: 1;
-            white-space: pre-wrap;
+                .ghi-chu-btn-edit {
+                    flex-shrink: 0;
+                    padding: 0 4px;
+                    height: 24px;
+                    line-height: 24px;
+                    color: #004aad;
+                    border-color: #d9d9d9;
 
-            img {
-                cursor: zoom-in;
-                transition: transform 0.15s;
-
-                &:hover {
-                    transform: scale(1.03);
+                    &:hover {
+                        color: #002b66;
+                        border-color: #004aad;
+                    }
                 }
             }
         }
@@ -408,15 +412,35 @@
 
         .chu-ky-space {
             height: 100px;
-            position: relative;
+            // Flexbox thay vì absolute + offset cứng (dễ lệch vì đoán sai
+            // chiều cao thật của ảnh/icon) — họ tên LUÔN neo đáy
+            // (justify-content: flex-end), ảnh/icon (nếu có) tự xếp ngay
+            // phía trên, canh giữa theo chiều ngang.
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
 
             span {
-                position: absolute;
-                bottom: 0;
-                left: 0;
-                right: 0;
                 font-style: italic;
                 font-weight: normal;
+            }
+
+            // Ảnh chữ ký thật (tài khoản nội bộ, có ảnh "đang sử dụng").
+            .chu-ky-anh {
+                max-width: 100%;
+                max-height: 70px;
+                object-fit: contain;
+                margin-bottom: 4px;
+            }
+
+            // Icon √ thay ảnh chữ ký — nhà thầu (không quản lý ảnh chữ ký
+            // trong hệ thống) hoặc nội bộ chưa từng upload ảnh nào.
+            .chu-ky-icon-wrap {
+                font-size: 30px;
+                line-height: 1;
+                color: #16a34a;
+                margin-bottom: 4px;
             }
         }
 
@@ -612,9 +636,6 @@
             }
         }
 
-        .ket-luan-ghi-chu {
-            font-size: $fs-print-note;
-        }
     }
 
     .phieu-chu-ky {

@@ -26,6 +26,7 @@ import {
     useUploadChuKyNguoiDungMutation,
     useXoaVinhVienNguoiDungMutation,
 } from "../services/nguoiDungApiV2";
+import { useDanhSachMauLuongKyQuery } from "../services/mauLuongKyApi";
 import { useDanhSachNhaThauQuery } from "../services/nhaThauApiV2";
 import { useDanhSachPhongBanQuery } from "../services/phongBanApiV2";
 import { useDanhSachVaiTroQuery } from "../services/vaiTroApiV2";
@@ -416,6 +417,15 @@ const ChiTietTaiKhoanDrawer: React.FC<ChiTietTaiKhoanDrawerProps> = ({ nguoiDung
     const [uploadChuKy, { isLoading: dangUpload }] = useUploadChuKyNguoiDungMutation();
     const [kichHoatChuKy] = useKichHoatChuKyNguoiDungMutation();
 
+    // Tra tên bước ký từ ID (danhSachMauLuongKyId chỉ là số) — dùng danh sách
+    // TẤT CẢ luồng ký (không lọc loaiPhieu) để hiển thị tóm tắt "Phân quyền
+    // theo Phiếu" ngay trong Chi tiết, không cần mở modal mới thấy được đã
+    // gán gì (xem yêu cầu: modal cũ không lưu vết rõ ràng khi mở lại).
+    const { data: tatCaMauLuongKy = [] } = useDanhSachMauLuongKyQuery();
+    const buocKyDaGan = (nguoiDung?.danhSachMauLuongKyId ?? [])
+        .map(mlkId => tatCaMauLuongKy.find(m => m.id === mlkId))
+        .filter((m): m is NonNullable<typeof m> => !!m);
+
     const xuLyUpload = async (file: RcFile): Promise<boolean> => {
         if (!id) return false;
         if (!DUOI_CHU_KY_CHO_PHEP.includes(file.type)) {
@@ -471,6 +481,39 @@ const ChiTietTaiKhoanDrawer: React.FC<ChiTietTaiKhoanDrawerProps> = ({ nguoiDung
                                     ? nguoiDung.danhSachVaiTro.map(vt => <Tag key={vt} color="blue">{vt}</Tag>)
                                     : "--"}
                             </div>
+                        </div>
+                    </Card>
+
+                    <Card size="small" title="Phân quyền theo Phiếu">
+                        <div className="flex flex-col gap-3">
+                            {DS_LOAI_PHIEU.map(t => {
+                                const quyen = nguoiDung.phieuQuyen.find(pq => pq.loaiPhieu === t.value);
+                                const buocCuaPhieu = buocKyDaGan
+                                    .filter(b => b.loaiPhieu === t.value)
+                                    .sort((a, b) => a.buocThuTu - b.buocThuTu);
+                                const coGiDo = quyen?.duocDanhGia || quyen?.duocQuanLyTieuChi || buocCuaPhieu.length > 0;
+
+                                return (
+                                    <div key={t.value}>
+                                        <div className="font-medium text-sm">{tenLoaiPhieu(t.value)}</div>
+                                        {coGiDo ? (
+                                            <div className="flex flex-col gap-1 mt-1">
+                                                <div className="flex flex-wrap gap-1">
+                                                    {quyen?.duocDanhGia && <Tag color="blue">Đánh giá / nhập liệu</Tag>}
+                                                    {quyen?.duocQuanLyTieuChi && <Tag color="purple">Quản lý tiêu chí</Tag>}
+                                                </div>
+                                                {buocCuaPhieu.map(b => (
+                                                    <Tag key={b.id} color="green" className="w-fit">
+                                                        Ký — Bước {b.buocThuTu}: {b.tenBuoc}
+                                                    </Tag>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-gray-400 text-sm">-- Chưa phân quyền --</div>
+                                        )}
+                                    </div>
+                                );
+                            })}
                         </div>
                     </Card>
 
@@ -549,12 +592,29 @@ const PhanQuyenPhieuModal: React.FC<PhanQuyenPhieuModalProps> = ({ nguoiDung, on
     const luu = async () => {
         if (!id) return;
         try {
-            await capNhatLuongKy({ id, mauLuongKyIds: mauLuongKyDaChon }).unwrap();
-            const danhSach: NguoiDungPhieuQuyenModel[] = DS_LOAI_PHIEU.map(t => ({
-                loaiPhieu: t.value,
-                duocDanhGia: !!phieuQuyenDaChon[t.value]?.duocDanhGia,
-                duocQuanLyTieuChi: !!phieuQuyenDaChon[t.value]?.duocQuanLyTieuChi,
-            }));
+            // Chỉ gửi lên đúng những gì ĐANG HIỆN trong modal (nằm trong
+            // loaiPhieuApDung — trần phòng ban/nhà thầu hiện tại) — không gửi
+            // lại nguyên trạng thái cũ. Vì "Lưu" là THAY THẾ TOÀN BỘ
+            // (CapNhatPhieuQuyenAsync/CapNhatLuongKyAsync), nếu phòng ban vừa
+            // bị thu hẹp trần (VD không còn xử lý Phiếu 2 nữa) mà vẫn gửi lại
+            // dữ liệu Phiếu 2 cũ (đã ẩn khỏi UI nhưng còn sót trong state) thì
+            // backend sẽ từ chối CẢ request — tự lọc ở đây để dữ liệu ngoài
+            // trần cũ tự bị dọn (xóa) ngay lần Lưu tiếp theo, không cần Admin
+            // reset tay từng tài khoản.
+            const loaiPhieuApDung = nguoiDung?.loaiPhieuApDung ?? [];
+            const mauLuongKyHopLe = mauLuongKyDaChon.filter(mlkId => {
+                const buoc = buocKhaDung.find(b => b.mauLuongKyId === mlkId);
+                return !buoc || loaiPhieuApDung.includes(buoc.loaiPhieu);
+            });
+            await capNhatLuongKy({ id, mauLuongKyIds: mauLuongKyHopLe }).unwrap();
+
+            const danhSach: NguoiDungPhieuQuyenModel[] = DS_LOAI_PHIEU
+                .filter(t => loaiPhieuApDung.includes(t.value))
+                .map(t => ({
+                    loaiPhieu: t.value,
+                    duocDanhGia: !!phieuQuyenDaChon[t.value]?.duocDanhGia,
+                    duocQuanLyTieuChi: !!phieuQuyenDaChon[t.value]?.duocQuanLyTieuChi,
+                }));
             await capNhatPhieuQuyen({ id, danhSach }).unwrap();
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Cập nhật phân quyền theo Phiếu thành công", messageNotify: "" }));
             onDong();
@@ -576,55 +636,75 @@ const PhanQuyenPhieuModal: React.FC<PhanQuyenPhieuModalProps> = ({ nguoiDung, on
             destroyOnClose
         >
             <div className="flex flex-col gap-4">
-                {DS_LOAI_PHIEU.map(t => {
-                    const buocCuaPhieu = buocKhaDung.filter(b => b.loaiPhieu === t.value);
-                    const quyen = phieuQuyenDaChon[t.value] ?? { duocDanhGia: false, duocQuanLyTieuChi: false };
-                    return (
-                        <Card key={t.value} size="small" title={tenLoaiPhieu(t.value)} loading={isFetching}>
-                            <div className="flex flex-col gap-2">
-                                <div className="flex gap-4">
-                                    <Checkbox
-                                        checked={quyen.duocDanhGia}
-                                        onChange={(e) => toggleQuyenPhieu(t.value, "duocDanhGia", e.target.checked)}
-                                    >
-                                        Đánh giá / nhập liệu
-                                    </Checkbox>
-                                    <Checkbox
-                                        checked={quyen.duocQuanLyTieuChi}
-                                        onChange={(e) => toggleQuyenPhieu(t.value, "duocQuanLyTieuChi", e.target.checked)}
-                                    >
-                                        Quản lý tiêu chí
-                                    </Checkbox>
-                                </div>
-
-                                {buocCuaPhieu.length > 0 && (
-                                    <div>
-                                        <div className="text-gray-400 text-sm mb-1">Ký:</div>
-                                        <div className="flex flex-col gap-1">
-                                            {buocCuaPhieu.map(b => {
-                                                const o = (
-                                                    <Checkbox
-                                                        key={b.mauLuongKyId}
-                                                        disabled={!b.duDieuKienCauTruc}
-                                                        checked={mauLuongKyDaChon.includes(b.mauLuongKyId)}
-                                                        onChange={(e) => toggleBuocKy(b.mauLuongKyId, e.target.checked)}
-                                                    >
-                                                        Bước {b.buocThuTu} — {b.tenBuoc}
-                                                    </Checkbox>
-                                                );
-                                                return b.duDieuKienCauTruc ? o : (
-                                                    <Tooltip key={b.mauLuongKyId} title="Không đủ điều kiện phòng ban/nhà thầu cho bước này">
-                                                        {o}
-                                                    </Tooltip>
-                                                );
-                                            })}
+                {DS_LOAI_PHIEU
+                    // Chỉ hiện Card của loại phiếu nằm trong "trần" phòng
+                    // ban/nhà thầu của tài khoản này (loaiPhieuApDung) — VD
+                    // phòng ban chỉ xử lý Phiếu 1 thì các Card còn lại ẩn hẳn,
+                    // không hiện ra rồi disable (xem VaiTro.md mục 10).
+                    .filter(t => (nguoiDung?.loaiPhieuApDung ?? []).includes(t.value))
+                    .map(t => {
+                        // Phiếu 3, Phiếu 4 không còn luồng ký — chỉ Phiếu 1, Phiếu 2 mới có bước ký.
+                        const buocCuaPhieu = (t.value === "PHIEU3" || t.value === "PHIEU4")
+                            ? []
+                            : buocKhaDung.filter(b => b.loaiPhieu === t.value);
+                        const quyen = phieuQuyenDaChon[t.value] ?? { duocDanhGia: false, duocQuanLyTieuChi: false };
+                        // Nhà thầu chỉ có quyền Ký/Từ chối — không bao giờ có
+                        // Đánh giá/nhập liệu hay Quản lý tiêu chí (backend chặn
+                        // 403 nếu cố lưu, xem NguoiDungService.CapNhatPhieuQuyenAsync).
+                        const laNhaThau = !!nguoiDung?.nhaThauId;
+                        return (
+                            <Card key={t.value} size="small" title={tenLoaiPhieu(t.value)} loading={isFetching}>
+                                <div className="flex flex-col gap-2">
+                                    {!laNhaThau && (
+                                        <div className="flex gap-4">
+                                            <Checkbox
+                                                checked={quyen.duocDanhGia}
+                                                onChange={(e) => toggleQuyenPhieu(t.value, "duocDanhGia", e.target.checked)}
+                                            >
+                                                Đánh giá / nhập liệu
+                                            </Checkbox>
+                                            <Checkbox
+                                                checked={quyen.duocQuanLyTieuChi}
+                                                onChange={(e) => toggleQuyenPhieu(t.value, "duocQuanLyTieuChi", e.target.checked)}
+                                            >
+                                                Quản lý tiêu chí
+                                            </Checkbox>
                                         </div>
-                                    </div>
-                                )}
-                            </div>
-                        </Card>
-                    );
-                })}
+                                    )}
+
+                                    {buocCuaPhieu.length > 0 && (
+                                        <div>
+                                            <div className="text-gray-400 text-sm mb-1">Ký:</div>
+                                            <div className="flex flex-col gap-1">
+                                                {buocCuaPhieu.map(b => {
+                                                    const duDieuKien = b.duDieuKienCauTruc && b.duDieuKienPhongBan;
+                                                    const o = (
+                                                        <Checkbox
+                                                            key={b.mauLuongKyId}
+                                                            disabled={!duDieuKien}
+                                                            checked={mauLuongKyDaChon.includes(b.mauLuongKyId)}
+                                                            onChange={(e) => toggleBuocKy(b.mauLuongKyId, e.target.checked)}
+                                                        >
+                                                            Bước {b.buocThuTu} — {b.tenBuoc}
+                                                        </Checkbox>
+                                                    );
+                                                    if (duDieuKien) return o;
+                                                    const lyDo = !b.duDieuKienCauTruc
+                                                        ? "Không đủ điều kiện phòng ban/nhà thầu cho bước này"
+                                                        : "Phòng ban/Nhà thầu của tài khoản không xử lý loại phiếu này";
+                                                    return (
+                                                        <Tooltip key={b.mauLuongKyId} title={lyDo}>
+                                                            {o}
+                                                        </Tooltip>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </Card>
+                        );
+                    })}
             </div>
         </Modal>
     );

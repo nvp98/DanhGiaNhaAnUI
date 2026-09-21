@@ -1,4 +1,6 @@
-// Module 2 (đánh giá nhà ăn - 4 phiếu) trỏ về DanhGiaAPI mới (khác API cũ ở acctions/LinkServer.tsx).
+// Base URL API dùng chung cho toàn bộ app (trước đây module chấm điểm bữa ăn
+// dùng riêng acctions/LinkServer.tsx hard-code URL, đã gộp về đây vì cùng chung
+// 1 backend DanhGiaAPI).
 // Đổi VITE_BASE_API trong .env khi deploy lên môi trường thật (Vite chỉ expose
 // biến môi trường có tiền tố "VITE_" ra code phía client).
 // Dùng http (cổng 5056) — BE đã bỏ UseHttpsRedirection() nên không còn bị

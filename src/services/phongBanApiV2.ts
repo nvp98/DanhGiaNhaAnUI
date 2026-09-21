@@ -5,6 +5,7 @@ export interface PhongBanRequestV2 {
     ma: string;
     ten: string;
     dangHoatDong: boolean;
+    cacLoaiPhieuApDung: string[];
 }
 
 export interface DanhSachPhongBanParamsV2 {

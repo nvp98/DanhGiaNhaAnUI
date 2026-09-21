@@ -1,3 +1,4 @@
+import DoanModel from "./DoanModel";
 import Phieu3Model from "./Phieu3Model";
 
 export interface Phieu3Bang1DongModel {
@@ -51,4 +52,5 @@ export default interface Phieu3ResponseModel {
     bang1: Phieu3Bang1DongModel[];
     bang2: Phieu3Bang2DongModel[];
     yKienNhaThau?: Phieu3YKienNhaThauModel;
+    doan: DoanModel[];
 }

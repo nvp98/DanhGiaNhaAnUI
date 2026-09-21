@@ -1,12 +1,12 @@
 import axios from "axios";
-import LinkServer from "./LinkServer";
+import LinkServerV2 from "../services/LinkServerV2";
 import KhaoSatModel from "../models/KhaoSatModel";
 
 
 
 const GetKhaoSatAction = async (start: string, end: string): Promise<KhaoSatModel[]> => {
    
-    const url = `${LinkServer}/Evaluates?TuNgay=${start}&DenNgay=${end}`;
+    const url = `${LinkServerV2}/Evaluates?TuNgay=${start}&DenNgay=${end}`;
 
     try {
         const res = await axios({

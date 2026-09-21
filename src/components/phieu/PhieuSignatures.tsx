@@ -1,5 +1,6 @@
 import { Button, Input, Modal, Select } from "antd";
 import React, { useEffect, useState } from "react";
+import { FaCheckCircle } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import {
     useDanhSachNguoiKyKhaDungQuery,
@@ -8,6 +9,7 @@ import {
     useTienDoKyQuery,
     useTuChoiPhieuMutation,
 } from "../../services/chuKyPhieuApi";
+import { ApiRootV2 } from "../../services/LinkServerV2";
 import { useDanhSachMauLuongKyQuery } from "../../services/mauLuongKyApi";
 import ChuKyPhieuModel from "../../models/ChuKyPhieuModel";
 import { setNotify } from "../../store/notifycationSlide";
@@ -52,15 +54,22 @@ const CotChuKy: React.FC<{
     const [chonId, setChonId] = useState<number | undefined>(buoc.nguoiKyDuKienId);
     const [moTuChoi, setMoTuChoi] = useState(false);
     const [lyDoTuChoi, setLyDoTuChoi] = useState("");
+    const [loiLyDoTuChoi, setLoiLyDoTuChoi] = useState(false);
 
-    // Nếu chỉ có đúng 1 người đủ điều kiện, mặc định chọn luôn người đó (không
-    // cần thao tác chọn) — vẫn cho phép server ghi nhận NguoiKyDuKienId nếu có.
+    // Mặc định chọn sẵn người ký, ưu tiên theo thứ tự — vẫn cho đổi sang người
+    // khác (ký thay) ở cả 3 trường hợp, KHÔNG khóa cứng:
+    // 1. Đã có NguoiKyDuKienId (Admin/nhóm đã chỉ định trước) -> luôn ưu tiên
+    //    giá trị này.
+    // 2. Chỉ có đúng 1 người đủ điều kiện -> khỏi cần chọn tay.
+    // 3. Nhiều người đủ điều kiện (VD nhiều tài khoản cùng 1 nhà thầu) nhưng
+    //    chưa ai chỉ định -> mặc định CHÍNH người đang đăng nhập (đỡ phải tự
+    //    tìm tên mình trong dropdown khi đa số trường hợp là tự ký cho mình).
     useEffect(() => {
         if (buoc.nguoiKyDuKienId) setChonId(buoc.nguoiKyDuKienId);
         else if (chiMot) setChonId(nguoiKhaDung[0].id);
-    }, [buoc.nguoiKyDuKienId, chiMot, nguoiKhaDung]);
-
-    const tenTheoId = (id?: number) => (id ? nguoiKhaDung.find(nd => nd.id === id)?.hoTen ?? `#${id}` : undefined);
+        else if (nguoiDungHienTaiId != null && nguoiKhaDung.some(nd => nd.id === nguoiDungHienTaiId))
+            setChonId(nguoiDungHienTaiId);
+    }, [buoc.nguoiKyDuKienId, chiMot, nguoiKhaDung, nguoiDungHienTaiId]);
 
     const xuLyChonNguoi = async (id: number) => {
         setChonId(id);
@@ -88,11 +97,25 @@ const CotChuKy: React.FC<{
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã ký", messageNotify: "" }));
             onDaDongBo?.();
         } catch (error: any) {
+            // Lỗi 409 do race condition (2 người cùng đủ điều kiện bấm Ký gần
+            // như đồng thời — xem ChuKyPhieuService.LuuKhongTrungLapAsync) đã
+            // có message rõ ràng từ backend, hiện y nguyên. useTienDoKyQuery
+            // tự tải lại (RTK Query invalidatesTags áp dụng cả khi lỗi) để
+            // cột chữ ký hiện đúng người đã ký thắng; gọi thêm onDaDongBo để
+            // đồng bộ luôn trạng thái tổng của phiếu theo tiến độ ký mới nhất.
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Ký thất bại", messageNotify: "" }));
+            onDaDongBo?.();
         }
     };
 
     const xuLyTuChoi = async () => {
+        // Chặn ngay trên FE thay vì chỉ disable nút OK — disable im lặng dễ
+        // khiến người dùng không hiểu vì sao không bấm được; ở đây bấm được
+        // nhưng hiện rõ lỗi để họ biết cần nhập gì.
+        if (!lyDoTuChoi.trim()) {
+            setLoiLyDoTuChoi(true);
+            return;
+        }
         try {
             await tuChoiPhieu({
                 id: buoc.id,
@@ -105,22 +128,42 @@ const CotChuKy: React.FC<{
             setLyDoTuChoi("");
             onDaDongBo?.();
         } catch (error: any) {
+            // Cùng lý do với xuLyKy — có thể do race condition (bước vừa được
+            // người khác ký/từ chối xong), gọi onDaDongBo để đồng bộ lại.
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Từ chối thất bại", messageNotify: "" }));
+            onDaDongBo?.();
         }
     };
-
+console.log(buoc);
     return (
         <div className="chu-ky-block">
             <div className="chu-ky-title">{buoc.tenBuoc}</div>
 
             {!dangChoKy ? (
                 // Đã ký / đã từ chối — hiển thị tĩnh cho cả màn hình lẫn bản in.
+                // Đã ký: hiện ẢNH chữ ký (nếu người ký là nội bộ và có ảnh
+                // "đang sử dụng" — xem ChuKyPhieuService.TienDoKyAsync), nhà
+                // thầu không quản lý ảnh chữ ký trong hệ thống nên chỉ hiện
+                // icon √ (cũng là fallback khi nội bộ chưa từng upload ảnh).
                 <div className="chu-ky-space">
-                    <span>
-                        {buoc.trangThai === "DA_DUYET"
-                            ? tenTheoId(buoc.nguoiKyId) || "(đã ký)"
-                            : `Từ chối${buoc.ghiChu ? ": " + buoc.ghiChu : ""}`}
-                    </span>
+                    {buoc.trangThai === "DA_DUYET" ? (
+                        <>
+                            {buoc.duongDanChuKy ? (
+                                <img
+                                    src={`${ApiRootV2}${buoc.duongDanChuKy}`}
+                                    alt="Chữ ký"
+                                    className="chu-ky-anh"
+                                />
+                            ) : (
+                                <div className="chu-ky-icon-wrap">
+                                    <FaCheckCircle />
+                                </div>
+                            )}
+                            <span>{buoc.nguoiKyHoTen || "(đã ký)"}</span>
+                        </>
+                    ) : (
+                        <span>{`Từ chối${buoc.ghiChu ? ": " + buoc.ghiChu : ""}`}</span>
+                    )}
                 </div>
             ) : (
                 <>
@@ -153,7 +196,7 @@ const CotChuKy: React.FC<{
                                 <Button size="small" type="primary" loading={dangKy} disabled={!chonId} onClick={xuLyKy}>
                                     Ký
                                 </Button>
-                                <Button size="small" danger onClick={() => setMoTuChoi(true)}>
+                                <Button size="small" danger onClick={() => { setMoTuChoi(true); setLoiLyDoTuChoi(false); }}>
                                     Từ chối
                                 </Button>
                             </div>
@@ -169,9 +212,9 @@ const CotChuKy: React.FC<{
             <Modal
                 title="Lý do từ chối"
                 open={moTuChoi}
-                onCancel={() => setMoTuChoi(false)}
+                onCancel={() => { setMoTuChoi(false); setLoiLyDoTuChoi(false); }}
                 onOk={xuLyTuChoi}
-                okButtonProps={{ loading: dangTuChoi, disabled: !lyDoTuChoi.trim() }}
+                okButtonProps={{ loading: dangTuChoi }}
                 okText="Từ chối"
                 cancelText="Hủy"
                 destroyOnClose
@@ -180,8 +223,12 @@ const CotChuKy: React.FC<{
                     rows={3}
                     placeholder="Nhập lý do từ chối..."
                     value={lyDoTuChoi}
-                    onChange={e => setLyDoTuChoi(e.target.value)}
+                    onChange={e => { setLyDoTuChoi(e.target.value); if (e.target.value.trim()) setLoiLyDoTuChoi(false); }}
+                    status={loiLyDoTuChoi ? "error" : undefined}
                 />
+                {loiLyDoTuChoi && (
+                    <div className="text-red-500 text-sm mt-1">Vui lòng nhập lý do từ chối</div>
+                )}
             </Modal>
         </div>
     );
@@ -195,9 +242,12 @@ export const PhieuSignatures: React.FC<PhieuSignaturesProps> = ({
 }) => {
     const nguoiDungHienTaiId = useSelector((state: RootType) => state.authV2.nguoiDung?.id);
 
+    // refetchOnMountOrArgChange: người khác (nhà thầu/phòng ban khác) có thể
+    // vừa ký/từ chối ở phiên khác — ép gọi lại mỗi lần vào trang thay vì dùng
+    // cache cũ, xem giải thích ở Phieu1FormPage.tsx.
     const { data: tienDo = [] } = useTienDoKyQuery(
         { loaiDoiTuong, doiTuongId: doiTuongId ?? 0 },
-        { skip: !doiTuongId }
+        { skip: !doiTuongId, refetchOnMountOrArgChange: true }
     );
     // Dùng làm khối chữ ký TĨNH khi chưa "Gửi ký" (ChuKyPhieu chưa tồn tại) —
     // vẫn hiển thị đúng tên bước theo cấu hình Luồng ký hiện hành.

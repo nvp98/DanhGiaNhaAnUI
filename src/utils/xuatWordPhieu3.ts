@@ -2,8 +2,10 @@ import {
     AlignmentType,
     BorderStyle,
     Document,
+    Footer,
     ImageRun,
     Packer,
+    PageNumber,
     Paragraph,
     Table,
     TableBorders,
@@ -184,19 +186,13 @@ export interface XuatWordPhieu3Params {
     thang: number;
     nam: number;
     dsSoHieuPhieu2: string[];
-    canCuPhieu1: { tenPhongBan: string; danhSachNgay: string[] }[];
+    canCuPhieu1: { tenPhongBan: string; danhSachSoHieu: string[] }[];
     bang1: Phieu3Bang1DongModel[];
     bang2: { tenPhongBan: string; giaTriTheoTieuChi: (number | undefined)[] }[];
     bang2CotTieuChi: string[]; // nhãn đầy đủ 6 tiêu chí, đúng thứ tự
     yKienHtml: string;
     chuKy: XuatWordPhieu3ChuKy[];
 }
-
-const noiVaCuoi = (items: string[]): string => {
-    if (items.length === 0) return "";
-    if (items.length === 1) return items[0];
-    return `${items.slice(0, -1).join(", ")} và ${items[items.length - 1]}`;
-};
 
 const trangThaiChuKyHienThi = (trangThai: string, ghiChu?: string): string => {
     switch (trangThai) {
@@ -248,8 +244,11 @@ export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void
         ["diem1", "diem2", "diem3", "diem4", "diem5"];
 
     // ---- Bảng 1 ----
+    // 2 dòng đầu (rowSpan header) đánh dấu tableHeader: true — Word tự lặp
+    // lại đúng 2 dòng này ở đầu mỗi trang nếu bảng bị ngắt trang giữa chừng.
     const bang1Rows: TableRow[] = [
         new TableRow({
+            tableHeader: true,
             children: [
                 oOBang("Nội dung", { dam: true, rowSpan: 2 }),
                 oOBang("Tiêu chí đánh giá", { dam: true, columnSpan: 5 }),
@@ -257,6 +256,7 @@ export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void
             ],
         }),
         new TableRow({
+            tableHeader: true,
             children: BANG1_COT_DIEM_LABEL.map(label => oOBang(label, { dam: true })),
         }),
         new TableRow({
@@ -284,12 +284,14 @@ export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void
     // ---- Bảng 2 ----
     const bang2Rows: TableRow[] = [
         new TableRow({
+            tableHeader: true,
             children: [
                 oOBang("Bộ phận đánh giá", { dam: true, rowSpan: 2 }),
                 oOBang("Điểm đánh giá theo tiêu chí (thang điểm 1-5)", { dam: true, columnSpan: bang2CotTieuChi.length }),
             ],
         }),
         new TableRow({
+            tableHeader: true,
             children: bang2CotTieuChi.map(label => oOBang(label, { dam: true })),
         }),
         ...bang2.map(dong => new TableRow({
@@ -311,9 +313,9 @@ export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void
             )
         );
     }
-    canCuPhieu1.forEach(({ tenPhongBan, danhSachNgay }) => {
+    canCuPhieu1.forEach(({ tenPhongBan, danhSachSoHieu }) => {
         canCuDoan.push(
-            oDoan(`- Căn cứ phiếu kiểm tra VSATTP ngày ${noiVaCuoi(danhSachNgay)} của ${tenPhongBan}.`)
+            oDoan(`- Căn cứ kết quả đánh giá công tác VSATTP của ${tenPhongBan} theo các Bảng đánh giá số: ${danhSachSoHieu.join("; ")} của ${tenPhongBan}.`)
         );
     });
 
@@ -413,10 +415,28 @@ export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void
         ],
     });
 
+    // Số trang góc dưới-phải mỗi trang — field PageNumber.CURRENT/TOTAL_PAGES
+    // của docx tự cập nhật theo phân trang thật khi mở file (không phải số
+    // trang HTML lúc xem trên web).
+    const footer = new Footer({
+        children: [
+            new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                    oChu("Trang "),
+                    new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.CURRENT] }),
+                    oChu("/"),
+                    new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.TOTAL_PAGES] }),
+                ],
+            }),
+        ],
+    });
+
     const doc = new Document({
         sections: [
             {
                 properties: {},
+                footers: { default: footer },
                 children: [
                     headerTable,
                     oDoan(`Số: ${soHieu || "........................"}`, { co: 22, canhTruoc: 100, canhSau: 100 }),

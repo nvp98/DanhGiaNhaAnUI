@@ -18,6 +18,13 @@ export interface BangDongConfig {
     nhomSo: number;
     stt: number;
     label: string; // nhãn hiển thị (đè lên NoiDung lưu DB, giống NHAN_MUC_BANG1 cũ)
+    // Mã tiêu chí — CHỈ để đối chiếu/tự tài liệu hoá (không dùng để tra cứu
+    // giá trị, key tra cứu thật vẫn là (nhomSo, stt), xem timDong bên dưới).
+    // Khai báo cùng mã với Phieu2Service.TieuChiCoDinh / Phieu3Service.
+    // AnhXaTcSangPhieu2 để khi sửa thứ tự tiêu chí ở 1 trong 3 phiếu, người
+    // sửa nhìn maTieuChi là biết ngay đang khớp/lệch với 2 phiếu còn lại,
+    // thay vì phải dò theo đúng thứ tự dòng trong mảng.
+    maTieuChi?: string;
 }
 
 export interface BangNhomConfig {

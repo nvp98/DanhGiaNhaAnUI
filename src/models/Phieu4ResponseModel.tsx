@@ -1,3 +1,4 @@
+import DoanModel from "./DoanModel";
 import Phieu4Model from "./Phieu4Model";
 
 export interface Phieu4NhaThauCotModel {
@@ -5,6 +6,9 @@ export interface Phieu4NhaThauCotModel {
     phieuId: number;
     nhaThauId: number;
     thuTu: number;
+    // Bộ "đoạn" thời gian + địa điểm CỦA RIÊNG cột nhà thầu này — tương
+    // đương 1 "Phiếu 3 con". Thay thế hoàn toàn suy luận "địa điểm rõ ràng" cũ.
+    doan: DoanModel[];
 }
 
 export interface Phieu4GiaTriModel {

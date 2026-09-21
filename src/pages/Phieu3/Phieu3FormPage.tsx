@@ -1,20 +1,23 @@
 import { Button, InputNumber, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FaFileWord } from "react-icons/fa";
+import { FaEdit, FaFileWord } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
 import LayoutV2Component from "../../components/LayoutV2Component";
 import {
+    DoanBuilder,
+    DoanBuilderItem,
     GhiChuHtml,
     PhieuActions,
     PhieuHeader,
     PhieuInputCard,
     PhieuToolbar,
-    TinyMceInline,
+    TinyMceModal,
 } from "../../components/phieu";
 
+import { DoanRequest } from "../../models/DoanModel";
 import NhaThauModel from "../../models/NhaThauModel";
 import PhongBanModel from "../../models/PhongBanModel";
 import { Phieu3Bang1DongModel, Phieu3Bang2DongModel } from "../../models/Phieu3ResponseModel";
@@ -27,8 +30,10 @@ import {
     useChiTietPhieu3Query,
     usePhanHoiYKienNhaThauPhieu3Mutation,
     useSuaPhieu3Mutation,
+    useThemDoanPhieu3Mutation,
     useThemPhieu3Mutation,
     useTinhLaiPhieu3Mutation,
+    useXoaDoanPhieu3Mutation,
     useXoaPhieu3Mutation,
 } from "../../services/phieu3Api";
 import { useDanhSachPhongBanQuery } from "../../services/phongBanApiV2";
@@ -65,12 +70,23 @@ const BANG2_COT_TIEU_CHI: { key: string; label: string }[] = [
     { key: "TC6", label: "Phản hồi sự cố, xử lý khiếu nại nhanh chóng" },
 ];
 
-// Nối danh sách chuỗi kiểu "A, B và C" (dùng cho danh sách ngày kiểm tra)
-const noiVaCuoi = (items: string[]): string => {
-    if (items.length === 0) return "";
-    if (items.length === 1) return items[0];
-    return `${items.slice(0, -1).join(", ")} và ${items[items.length - 1]}`;
-};
+// Nối danh sách các mục CÓ THỂ BẤM kiểu "A, B và C" hoặc "A; B; C" (số hiệu
+// Phiếu 1/Phiếu 2) — dùng ở "1. Căn cứ đánh giá", hover xanh + trỏ tay, bấm
+// điều hướng thẳng tới phiếu chi tiết tương ứng.
+const renderDsClickable = (
+    items: { key: number; label: string; onClick: () => void }[],
+    kieu: "cham" | "va" = "va"
+) =>
+    items.map((item, i) => (
+        <React.Fragment key={item.key}>
+            <span className="lien-ket-phieu" onClick={item.onClick}>{item.label}</span>
+            {i === items.length - 1
+                ? ""
+                : kieu === "cham"
+                    ? "; "
+                    : i === items.length - 2 ? " và " : ", "}
+        </React.Fragment>
+    ));
 
 const tenDongBang1 = (maDong: string) => {
     switch (maDong) {
@@ -113,6 +129,8 @@ const Phieu3FormPage: React.FC = () => {
     const [xoaPhieu3] = useXoaPhieu3Mutation();
     const [phanHoiYKienNhaThau, { isLoading: dangLuuYKien }] = usePhanHoiYKienNhaThauPhieu3Mutation();
     const [suaPhieu3, { isLoading: dangLuuGiaTri }] = useSuaPhieu3Mutation();
+    const [themDoanPhieu3, { isLoading: dangThemDoan }] = useThemDoanPhieu3Mutation();
+    const [xoaDoanPhieu3] = useXoaDoanPhieu3Mutation();
 
     // ============================================================
     // LOCAL STATES
@@ -121,31 +139,87 @@ const Phieu3FormPage: React.FC = () => {
     const [nhaThauId, setNhaThauId] = useState<number | undefined>(undefined);
     const [thang, setThang] = useState<number>(new Date().getMonth() + 1);
     const [nam, setNam] = useState<number>(new Date().getFullYear());
+    // Ranh giới tháng/năm báo cáo đang chọn — giới hạn DatePicker của
+    // DoanBuilder bên dưới chỉ cho chọn ngày TRONG tháng này.
+    const ngayDauThang = dayjs(`${nam}-${String(thang).padStart(2, "0")}-01`).startOf("month");
+    const ngayCuoiThang = ngayDauThang.endOf("month");
     const [bang1, setBang1] = useState<Phieu3Bang1DongModel[]>([]);
     const [bang2, setBang2] = useState<Phieu3Bang2DongModel[]>([]);
     const [daKhoiTao, setDaKhoiTao] = useState(false);
+    // Đoạn thời gian & địa điểm phụ trách — build mode (form tạo mới, chưa
+    // có phiếu) giữ state cục bộ, key tạm; xem DoanBuilder.
+    const [doanMoi, setDoanMoi] = useState<DoanBuilderItem[]>([]);
 
     const [yKien, setYKien] = useState("");
+    // Modal soạn Ý kiến BP.QLTT — bấm icon sửa để mở, thay vì hiện thẳng khung
+    // TinyMCE to trên trang.
+    const [modalYKienOpen, setModalYKienOpen] = useState(false);
     const [dangXuatWord, setDangXuatWord] = useState(false);
     // Ô "Đa dạng thực đơn" (TC3, Bảng 2) — không có nguồn tự động ở CẢ 2 dòng
     // (P.ĐN lẫn P.ATMT, xem Phieu3Service.TinhLaiBang2Async) nên vẫn cho nhập
     // tay, khóa theo PhongBanId, chỉ chứa ô người dùng vừa sửa (chưa lưu).
     const [suaDaDangThucDon, setSuaDaDangThucDon] = useState<Record<number, number | null>>({});
 
-    // Danh sách Phiếu 1 / Phiếu 2 trong tháng — dùng để tự tổng hợp mục "1. Căn cứ đánh giá"
-    const dauThang = dayjs(`${nam}-${String(thang).padStart(2, "0")}-01`).startOf("month");
-    const { data: danhSachPhieu2ThangNay = [] } = useDanhSachPhieu2Query(
-        { nhaThauId, thang, nam },
-        { skip: laTaoMoi || !nhaThauId }
-    );
-    const { data: danhSachPhieu1ThangNay = [] } = useDanhSachPhieu1Query(
+    // Danh sách Phiếu 1 / Phiếu 2 để tự tổng hợp mục "1. Căn cứ đánh giá" —
+    // PHẢI khớp ĐÚNG tập Phiếu 2/Phiếu 1 mà Bảng 2 backend thực sự dùng để
+    // tính điểm (Phieu3Service.TinhLaiBang2Async): ngày rơi vào UNION các
+    // "đoạn" đã khai báo (TrongDoanNao), KHÔNG còn theo Thang/Nam nữa — dù
+    // FE giờ chỉ cho chọn đoạn TRONG tháng báo cáo (xem ngayDauThang/
+    // ngayCuoiThang, DoanBuilder), backend không tự ràng buộc lại điều này.
+    const doanRanges = (chiTietPhieu?.doan ?? []).map(d => ({
+        tuNgay: dayjs(d.tuNgay).startOf("day"),
+        denNgay: dayjs(d.denNgay).startOf("day"),
+    }));
+    const trongDoanNao = (ngay?: string | null) => {
+        if (!ngay) return false;
+        const n = dayjs(ngay).startOf("day");
+        return doanRanges.some(r => !n.isBefore(r.tuNgay) && !n.isAfter(r.denNgay));
+    };
+    const tuNgayNhoNhat = doanRanges.length > 0
+        ? doanRanges.reduce((min, r) => (r.tuNgay.isBefore(min) ? r.tuNgay : min), doanRanges[0].tuNgay)
+        : null;
+    const denNgayLonNhat = doanRanges.length > 0
+        ? doanRanges.reduce((max, r) => (r.denNgay.isAfter(max) ? r.denNgay : max), doanRanges[0].denNgay)
+        : null;
+
+    // Chỉ Phiếu 1 do P.ATMT lập mới được Bảng 2 dùng để tính điểm (xem
+    // Phieu3Service.TinhLaiBang2Async — pbAtmt) — lọc đúng phòng ban này ngay
+    // từ đây để "Căn cứ đánh giá" không liệt kê nhầm Phiếu 1 của phòng ban
+    // khác (không hề ảnh hưởng tới Bảng 2).
+    const pbAtmtId = danhSachPhongBan.find((pb: PhongBanModel) => pb.ma === "PATMT")?.id;
+    // pageSize lớn — đây là tổng hợp TOÀN BỘ Phiếu 1/2 trong khoảng đoạn để
+    // tính "1. Căn cứ đánh giá", KHÔNG phải màn danh sách cho người dùng lật
+    // trang, nên không được để mặc định 20/trang của endpoint làm mất dữ
+    // liệu tổng hợp. CHỈ lấy phiếu ĐÃ DUYỆT — PHẢI khớp đúng điều kiện
+    // TrangThai == "DA_DUYET" dùng ở Phieu3Service.TinhLaiBang2Async, nếu
+    // không mục "Căn cứ đánh giá" sẽ liệt kê cả Phiếu 1/2 đang Nháp/Chờ ký mà
+    // Bảng 2 bên dưới không hề dùng tới số liệu đó — 2 chỗ lệch nhau, dễ gây
+    // hiểu nhầm. Query chỉ lấy khoảng [nhỏ nhất, lớn nhất] của các đoạn (bao
+    // trọn mọi đoạn) rồi lọc lại chính xác qua trongDoanNao ở phía dưới —
+    // endpoint danh sách không hỗ trợ lọc theo NHIỀU khoảng ngày rời rạc.
+    const { data: ketQuaPhieu2ThangNay } = useDanhSachPhieu2Query(
         {
             nhaThauId,
-            tuNgay: dauThang.format("YYYY-MM-DD"),
-            denNgay: dauThang.endOf("month").format("YYYY-MM-DD"),
+            trangThai: "DA_DUYET",
+            tuNgay: tuNgayNhoNhat?.format("YYYY-MM-DD"),
+            denNgay: denNgayLonNhat?.format("YYYY-MM-DD"),
+            pageSize: 1000,
         },
-        { skip: laTaoMoi || !nhaThauId }
+        { skip: laTaoMoi || !nhaThauId || !tuNgayNhoNhat || !denNgayLonNhat }
     );
+    const danhSachPhieu2ThangNay = (ketQuaPhieu2ThangNay?.items ?? []).filter(p => trongDoanNao(p.thoiGianTu));
+    const { data: ketQuaPhieu1ThangNay } = useDanhSachPhieu1Query(
+        {
+            nhaThauId,
+            phongBanId: pbAtmtId,
+            trangThai: "DA_DUYET",
+            tuNgay: tuNgayNhoNhat?.format("YYYY-MM-DD"),
+            denNgay: denNgayLonNhat?.format("YYYY-MM-DD"),
+            pageSize: 1000,
+        },
+        { skip: laTaoMoi || !nhaThauId || !tuNgayNhoNhat || !denNgayLonNhat }
+    );
+    const danhSachPhieu1ThangNay = (ketQuaPhieu1ThangNay?.items ?? []).filter(p => trongDoanNao(p.ngayKiemTra));
 
     useEffect(() => {
         if (!authV2.isAuthenticated) {
@@ -156,6 +230,7 @@ const Phieu3FormPage: React.FC = () => {
     useEffect(() => {
         setDaKhoiTao(false);
         setSuaDaDangThucDon({});
+        setDoanMoi([]);
     }, [id]);
 
     useEffect(() => {
@@ -190,29 +265,48 @@ const Phieu3FormPage: React.FC = () => {
     const tenPhongBan = (idPb: number) =>
         danhSachPhongBan.find((pb: PhongBanModel) => pb.id === idPb)?.ten ?? `Phòng ban #${idPb}`;
     // "1. Căn cứ đánh giá": tự tổng hợp từ các Phiếu 2 (Bảng đánh giá) và Phiếu 1
-    // (phiếu kiểm tra VSATTP) đã lập trong tháng/nhà thầu của báo cáo này.
-    // Chỉ lấy phần số thứ tự (VD "001" từ soHieu "001/2026/PĐGCLDVSA"), không
-    // lặp lại cả chuỗi số hiệu đầy đủ (đã có sẵn "Bảng đánh giá số" dẫn trước).
-    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay.map(p => p.soHieu.split("/")[0]);
+    // (phiếu kiểm tra VSATTP) ĐÃ DUYỆT trong tháng/nhà thầu của báo cáo này —
+    // đúng những phiếu THẬT SỰ được Bảng 2 dùng để tính điểm (đã lọc ở 2 query
+    // bên trên). Chỉ lấy phần số thứ tự (VD "001" từ soHieu "001/2026/PĐGCLDVSA"),
+    // không lặp lại cả chuỗi số hiệu đầy đủ (đã có sẵn "Bảng đánh giá số" dẫn
+    // trước). Giữ kèm "id" để bấm số hiệu điều hướng thẳng tới phiếu chi tiết
+    // (xem renderDsClickable).
+    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay.map(p => ({ id: p.id, label: p.soHieu.split("/")[0] }));
 
-    const ngayKiemTraTheoPhongBan = new Map<number, Set<string>>();
+    // Map lồng phongBanId -> (số hiệu -> id Phiếu 1) — giữ kèm id để bấm số
+    // hiệu điều hướng thẳng tới phiếu chi tiết, cùng cách lấy nhãn với
+    // dsSoHieuPhieu2 ở trên (chỉ lấy phần số đếm, VD "001" từ soHieu
+    // "001/2026/ATMT/VSATTP" — xem Phieu1Service.SinhSoHieuAsync). Nếu trùng
+    // nhãn (hiếm gặp) thì giữ phiếu ĐẦU TIÊN gặp được.
+    const phieu1TheoPhongBan = new Map<number, Map<string, number>>();
     danhSachPhieu1ThangNay.forEach(p => {
-        const ngay = dayjs(p.ngayKiemTra).format("DD/MM/YYYY");
-        if (!ngayKiemTraTheoPhongBan.has(p.phongBanId)) {
-            ngayKiemTraTheoPhongBan.set(p.phongBanId, new Set());
+        const nhan = p.soHieu.split("/")[0];
+        if (!phieu1TheoPhongBan.has(p.phongBanId)) {
+            phieu1TheoPhongBan.set(p.phongBanId, new Map());
         }
-        ngayKiemTraTheoPhongBan.get(p.phongBanId)!.add(ngay);
+        const theoSoHieu = phieu1TheoPhongBan.get(p.phongBanId)!;
+        if (!theoSoHieu.has(nhan)) theoSoHieu.set(nhan, p.id);
     });
-    const canCuPhieu1 = Array.from(ngayKiemTraTheoPhongBan.entries()).map(([phongBanId, ngaySet]) => ({
+    const canCuPhieu1 = Array.from(phieu1TheoPhongBan.entries()).map(([phongBanId, theoSoHieu]) => ({
         phongBanId,
-        danhSachNgay: Array.from(ngaySet).sort(
-            (a, b) => dayjs(a, "DD/MM/YYYY").valueOf() - dayjs(b, "DD/MM/YYYY").valueOf()
-        ),
+        danhSachSoHieu: Array.from(theoSoHieu.entries())
+            .map(([soHieu, id]) => ({ soHieu, id }))
+            .sort((a, b) => a.soHieu.localeCompare(b.soHieu, undefined, { numeric: true })),
     }));
 
     // ============================================================
     // TẠO MỚI / LƯU Ý KIẾN / TÍNH LẠI
     // ============================================================
+
+    const moModalYKien = () => setModalYKienOpen(true);
+
+    // Chỉ cập nhật state — API lưu thật diễn ra chung với nút "Lưu thay đổi"
+    // (xem luuYKien), phiếu chỉ cần lưu khi còn sửa được nên không có nhánh
+    // "lưu ngay" như Phiếu 2 (Ý kiến BP.QLTT không cần phản hồi sau khi ký).
+    const luuYKienModal = (html: string) => {
+        setYKien(html);
+        setModalYKienOpen(false);
+    };
 
     const xuLyTaoMoi = async () => {
         if (!nhaThauId) {
@@ -220,11 +314,40 @@ const Phieu3FormPage: React.FC = () => {
             return;
         }
         try {
-            const ketQua = await themPhieu3({ thang, nam, nhaThauId }).unwrap();
+            const doan: DoanRequest[] = doanMoi.map(({ key, ...rest }) => rest);
+            const ketQua = await themPhieu3({ thang, nam, nhaThauId, doan }).unwrap();
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lập báo cáo", messageNotify: "" }));
             navigator(`/phieu3/${ketQua.phieu.id}`);
         } catch (error: any) {
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Lập báo cáo thất bại", messageNotify: "" }));
+        }
+    };
+
+    // Build mode (form tạo mới) — chỉ mutate state cục bộ, gộp vào body lúc
+    // bấm "Lập báo cáo" (xem xuLyTaoMoi).
+    const xuLyThemDoanMoi = (doan: DoanRequest) => {
+        setDoanMoi((prev) => [...prev, { ...doan, key: `tam-${Date.now()}-${prev.length}` }]);
+    };
+    const xuLyXoaDoanMoi = (key: number | string) => {
+        setDoanMoi((prev) => prev.filter((d) => d.key !== key));
+    };
+
+    // API mode (phiếu đã tồn tại, còn Nháp/Từ chối) — gọi API ngay, tag
+    // invalidation của RTK Query tự refetch chi tiết phiếu.
+    const xuLyThemDoan = async (doan: DoanRequest) => {
+        try {
+            await themDoanPhieu3({ id: phieuId!, body: doan }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã thêm đoạn", messageNotify: "" }));
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Thêm đoạn thất bại", messageNotify: "" }));
+        }
+    };
+    const xuLyXoaDoan = async (key: number | string) => {
+        try {
+            await xoaDoanPhieu3({ id: phieuId!, doanId: Number(key) }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã xóa đoạn", messageNotify: "" }));
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Xóa đoạn thất bại", messageNotify: "" }));
         }
     };
 
@@ -293,10 +416,10 @@ const Phieu3FormPage: React.FC = () => {
                 tenNhaThau: tenNhaThau(nhaThauId),
                 thang,
                 nam,
-                dsSoHieuPhieu2,
-                canCuPhieu1: canCuPhieu1.map(({ phongBanId, danhSachNgay }) => ({
+                dsSoHieuPhieu2: dsSoHieuPhieu2.map(p => p.label),
+                canCuPhieu1: canCuPhieu1.map(({ phongBanId, danhSachSoHieu }) => ({
                     tenPhongBan: tenPhongBan(phongBanId),
-                    danhSachNgay,
+                    danhSachSoHieu: danhSachSoHieu.map(d => d.soHieu),
                 })),
                 bang1,
                 bang2: bang2.map(dong => ({
@@ -475,6 +598,36 @@ const Phieu3FormPage: React.FC = () => {
                 )}
             </PhieuInputCard>
 
+            {/* Đoạn thời gian & địa điểm phụ trách — thay cho suy luận tự động
+                cũ, cho phép nhà thầu đổi tập địa điểm phụ trách GIỮA kỳ báo
+                cáo. Build mode lúc tạo mới, API mode (thêm/xóa ngay) lúc còn
+                Nháp/Từ chối. Chỉ cho chọn ngày TRONG tháng/năm báo cáo đang
+                chọn (thang/nam — khóa cứng sau khi tạo, xem Select disabled
+                theo laTaoMoi ở trên) — khác Phiếu 4 vẫn cho đoạn vượt ranh
+                giới tháng, xem DoanBuilder.tsx. */}
+            <PhieuInputCard title="Đoạn thời gian & địa điểm phụ trách">
+                {laTaoMoi ? (
+                    <DoanBuilder
+                        items={doanMoi}
+                        coTheSua
+                        onThem={xuLyThemDoanMoi}
+                        onXoa={xuLyXoaDoanMoi}
+                        ngayToiThieu={ngayDauThang}
+                        ngayToiDa={ngayCuoiThang}
+                    />
+                ) : (
+                    <DoanBuilder
+                        items={(chiTietPhieu?.doan ?? []).map((d) => ({ ...d, key: d.id }))}
+                        coTheSua={coTheSua}
+                        dangThem={dangThemDoan}
+                        onThem={xuLyThemDoan}
+                        onXoa={xuLyXoaDoan}
+                        ngayToiThieu={ngayDauThang}
+                        ngayToiDa={ngayCuoiThang}
+                    />
+                )}
+            </PhieuInputCard>
+
             {laTaoMoi ? (
                 <div className="no-print">
                     <Button type="primary" size="large" loading={dangThem} onClick={xuLyTaoMoi}>
@@ -497,15 +650,24 @@ const Phieu3FormPage: React.FC = () => {
                     <div className="phieu3-section-title">1. Căn cứ đánh giá</div>
                     <div className="phieu3-can-cu-list">
                         <div>- Hợp đồng suất ăn công nghiệp số 0390.2023.HPDQ-PN-HDNT;</div>
+                        <div>- Căn cứ kết quả đánh giá thực tế từ CBNV;</div>
                         {dsSoHieuPhieu2.length > 0 && (
                             <div>
-                                - Căn cứ kết quả đánh giá thực tế từ CBNV và phòng chức năng theo các Bảng đánh giá số{" "}
-                                {dsSoHieuPhieu2.join("; ")};
+                                - Căn cứ kết quả đánh giá từ P.ĐN theo các Bảng đánh giá số: {" "}
+                                {renderDsClickable(
+                                    dsSoHieuPhieu2.map(p => ({ key: p.id, label: p.label, onClick: () => navigator(`/phieu2/${p.id}`) })),
+                                    "cham"
+                                )};
                             </div>
                         )}
-                        {canCuPhieu1.map(({ phongBanId, danhSachNgay }) => (
+                        {canCuPhieu1.map(({ phongBanId, danhSachSoHieu }) => (
                             <div key={phongBanId}>
-                                - Căn cứ phiếu kiểm tra VSATTP ngày {noiVaCuoi(danhSachNgay)} của {tenPhongBan(phongBanId)}.
+                                - Căn cứ kết quả đánh giá công tác VSATTP của P.ATMT theo các Bảng đánh giá số: {" "}
+                                {renderDsClickable(
+                                    danhSachSoHieu.map(d => ({ key: d.id, label: d.soHieu, onClick: () => navigator(`/phieu1/${d.id}`) })),
+                                    "cham"
+                                )}{" "}
+                                của P.ATMT.
                             </div>
                         ))}
                     </div>
@@ -590,26 +752,32 @@ const Phieu3FormPage: React.FC = () => {
 
                     {/* Ý KIẾN BP.QLTT — cùng TC3 "Đa dạng thực đơn" ở Bảng 2, là 2
                         trường tự nhập còn lại trên phiếu (phần còn lại của Bảng 1/2
-                        chỉ hiển thị số liệu hệ thống), lưu qua nút
-                        "Lưu thay đổi" ở thanh action cuối trang (xem luuYKien). */}
+                        chỉ hiển thị số liệu hệ thống). Hiện dạng preview (bấm ảnh
+                        phóng to được), bấm icon để mở modal TinyMCE soạn/chèn ảnh —
+                        modal chỉ cập nhật state, lưu qua nút "Lưu thay đổi" ở thanh
+                        action cuối trang (xem luuYKien). */}
                     <div className="phieu-y-kien mt-4">
                         <div className="phieu3-bang-title mt-4">3. Ý kiến của BP.QLTT</div>
-                        {coTheSua ? (
-                            <>
-                                <TinyMceInline
-                                    className="no-print"
-                                    value={yKien}
-                                    onChange={setYKien}
+                        <div className="ghi-chu-cell-wrapper">
+                            {yKien ? (
+                                <GhiChuHtml
+                                    className="ghi-chu-rich-preview ghi-chu-content"
+                                    html={yKien}
                                 />
-                                {yKien && (
-                                    <GhiChuHtml className="ghi-chu-rich-preview print-only" html={yKien} />
-                                )}
-                            </>
-                        ) : yKien ? (
-                            <GhiChuHtml className="ghi-chu-rich-preview" html={yKien} />
-                        ) : (
-                            <span className="text-gray-400 text-sm">Chưa có ý kiến</span>
-                        )}
+                            ) : (
+                                <span className="text-gray-400 text-sm ghi-chu-content">Chưa có ý kiến</span>
+                            )}
+                            {coTheSua && (
+                                <Tooltip title="Soạn ý kiến / chèn ảnh minh chứng">
+                                    <Button
+                                        className="no-print ghi-chu-btn-edit"
+                                        size="small"
+                                        icon={<FaEdit />}
+                                        onClick={moModalYKien}
+                                    />
+                                </Tooltip>
+                            )}
+                        </div>
                     </div>
 
                 </div>
@@ -629,6 +797,14 @@ const Phieu3FormPage: React.FC = () => {
                     onXoa={xuLyXoaPhieu}
                 />
             )}
+
+            <TinyMceModal
+                open={modalYKienOpen}
+                title="Soạn ý kiến của BP.QLTT"
+                initialValue={yKien}
+                onSave={luuYKienModal}
+                onCancel={() => setModalYKienOpen(false)}
+            />
         </LayoutV2Component>
     );
 };

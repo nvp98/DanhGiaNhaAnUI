@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import LayoutV2Component from "../components/LayoutV2Component";
 import { layNhomMenuHienThi } from "../config/menuV2";
+import { useLayHoSoQuery } from "../services/profileApiV2";
 import { RootType } from "../store/types";
 
 const TrangChuV2Page: React.FC = () => {
@@ -16,11 +17,19 @@ const TrangChuV2Page: React.FC = () => {
         }
     }, [authV2.isAuthenticated]);
 
+    // Phải gọi trước early-return bên dưới: nếu isAuthenticated chuyển
+    // true -> false trong lúc component đang mounted (vd logout), số hook
+    // gọi mỗi lần render phải giữ nguyên, nếu không React báo lỗi "Rendered
+    // fewer hooks than expected".
+    // Quyền theo Phiếu có hiệu lực NGAY -> đọc live qua API riêng thay vì
+    // nhét vào JWT (xem profileApiV2.ts / LayoutV2Component.tsx).
+    const { data: hoSo } = useLayHoSoQuery(undefined, { skip: !authV2.isAuthenticated });
+
     if (!authV2.isAuthenticated) {
         return null;
     }
 
-    const nhomMenu = layNhomMenuHienThi(authV2.nguoiDung);
+    const nhomMenu = layNhomMenuHienThi(authV2.nguoiDung, hoSo?.danhSachLoaiPhieuDuocXem);
 
     return <LayoutV2Component>
         <h2 className="font-bold text-xl text-zinc-700 mb-6">

@@ -2,8 +2,10 @@ import {
     AlignmentType,
     BorderStyle,
     Document,
+    Footer,
     ImageRun,
     Packer,
+    PageNumber,
     Paragraph,
     Table,
     TableBorders,
@@ -106,7 +108,10 @@ const taoBangCoDinh = (
         bang.dong.find(d => d.nhomSo === nhomSo && d.stt === stt);
 
     const rows: TableRow[] = [
+        // tableHeader: true — Word tự lặp lại dòng này ở đầu mỗi trang nếu
+        // bảng (Bảng 1/2, dùng chung hàm này) bị ngắt trang giữa chừng.
         new TableRow({
+            tableHeader: true,
             children: [
                 oO("STT", { dam: true, rong: RONG_STT }),
                 oO("Nội dung", { dam: true, rong: RONG_NOI_DUNG }),
@@ -349,10 +354,28 @@ export const xuatWordPhieu4 = async (params: XuatWordPhieu4Params): Promise<void
         ],
     });
 
+    // Số trang góc dưới-phải mỗi trang — field PageNumber.CURRENT/TOTAL_PAGES
+    // của docx tự cập nhật theo phân trang thật khi mở file (không phải số
+    // trang HTML lúc xem trên web).
+    const footer = new Footer({
+        children: [
+            new Paragraph({
+                alignment: AlignmentType.RIGHT,
+                children: [
+                    oChu("Trang "),
+                    new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.CURRENT] }),
+                    oChu("/"),
+                    new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.TOTAL_PAGES] }),
+                ],
+            }),
+        ],
+    });
+
     const doc = new Document({
         sections: [
             {
                 properties: {},
+                footers: { default: footer },
                 children: [
                     headerTable,
                     // oDoan(`Số: ${soHieu || "........................"}`, { co: 22, canhTruoc: 100, canhSau: 100 }),

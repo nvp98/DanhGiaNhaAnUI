@@ -1,7 +1,7 @@
 import { Button, DatePicker, Input, InputNumber, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FaEdit, FaImage } from "react-icons/fa";
+import { FaEdit, FaFileWord, FaImage, FaSave } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -13,9 +13,7 @@ import {
     PhieuInputCard,
     PhieuSignatures,
     PhieuToolbar,
-    TinyMceInline,
     TinyMceModal,
-    tenTrangThaiPhieu,
 } from "../../components/phieu";
 
 import BepAnModel from "../../models/BepAnModel";
@@ -23,6 +21,7 @@ import NhaAnModel from "../../models/NhaAnModel";
 import NhaThauModel from "../../models/NhaThauModel";
 
 import { useDanhSachBepAnQuery } from "../../services/bepAnApiV2";
+import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachDiaDiemNhaAnQuery } from "../../services/diaDiemNhaAnApiV2";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
 import { useChiTietPhieu1Query } from "../../services/phieu1Api";
@@ -40,6 +39,7 @@ import {
 
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
+import xuatWordPhieu2 from "../../utils/xuatWordPhieu2";
 
 import "./Phieu2FormPage.scss";
 
@@ -57,6 +57,9 @@ interface DongTieuChi extends Phieu2TieuChiRequest { }
 interface ModalGhiChuState {
     open: boolean;
     maTieuChi?: string;
+    // true khi modal đang soạn Ý kiến/phản hồi nhà thầu (không gắn với 1 dòng
+    // tiêu chí nào) — dùng phân biệt với modal soạn ghi chú "Không đạt".
+    laYKien?: boolean;
     title: string;
     subtitle?: string;
     value: string;
@@ -91,12 +94,26 @@ const Phieu2FormPage: React.FC = () => {
     // QUERIES & MUTATIONS
     // ============================================================
 
+    // refetchOnMountOrArgChange: bắt buộc gọi lại API mỗi lần vào trang —
+    // trạng thái/người ký của phiếu có thể đã đổi do người KHÁC vừa ký/từ
+    // chối (ở phiên/trình duyệt khác), RTK Query không có cách nào biết để tự
+    // invalidate cache qua tag, nên nếu không ép refetch thì quay lại danh
+    // sách rồi vào lại phiếu sẽ thấy dữ liệu cũ (chỉ F5 mới thấy đúng vì F5
+    // xóa sạch cache) — xem thêm giải thích ở Phieu1FormPage.tsx.
     const { data: chiTietPhieu, isFetching: dangTaiPhieu } = useChiTietPhieu2Query(
         phieuId!,
-        { skip: laTaoMoi }
+        { skip: laTaoMoi, refetchOnMountOrArgChange: true }
     );
     const { data: danhSachBepAn = [] } = useDanhSachBepAnQuery();
     const { data: danhSachNhaThau = [] } = useDanhSachNhaThauQuery();
+    // Tiến độ ký — chỉ dùng để in trạng thái/ngày ký vào bảng chữ ký khi xuất
+    // Word (xem xuLyXuatWord), giống Phieu1FormPage.tsx/Phieu3FormPage.tsx.
+    // PhieuSignatures.tsx tự fetch riêng cho khối chữ ký hiển thị trên màn
+    // hình nên không đụng tới state này.
+    const { data: tienDoKy = [] } = useTienDoKyQuery(
+        { loaiDoiTuong: "PHIEU2", doiTuongId: phieuId! },
+        { skip: laTaoMoi, refetchOnMountOrArgChange: true }
+    );
 
     const [themPhieu2, { isLoading: dangThem }] = useThemPhieu2Mutation();
     const [suaPhieu2, { isLoading: dangSua }] = useSuaPhieu2Mutation();
@@ -120,8 +137,13 @@ const Phieu2FormPage: React.FC = () => {
     const [thoiGianTu, setThoiGianTu] = useState<dayjs.Dayjs | null>(null);
     const [thoiGianKiemTraText, setThoiGianKiemTraText] = useState("");
     const [phieu1Id, setPhieu1Id] = useState<number | undefined>(undefined);
+    // Lọc thêm theo ngày cho dropdown "Phiếu 1 liên kết" — backend đã lọc sẵn
+    // theo nhà thầu/bếp ăn/phòng ban/đã duyệt, nhưng nếu vẫn còn nhiều dòng
+    // thì lọc thêm ở đây cho đỡ phải cuộn tìm.
+    const [locNgayP1, setLocNgayP1] = useState<dayjs.Dayjs | null>(null);
     const [danhSachTieuChi, setDanhSachTieuChi] = useState<DongTieuChi[]>(khoiTaoTieuChi());
     const [daKhoiTao, setDaKhoiTao] = useState(false);
+    const [dangXuatWord, setDangXuatWord] = useState(false);
 
     // Ý kiến nhà thầu — lưu độc lập qua API riêng
     const [yKien, setYKien] = useState("");
@@ -144,11 +166,18 @@ const Phieu2FormPage: React.FC = () => {
     const danhSachNhaAn = danhSachDiaDiemNhaAnGoc.filter(n => n.isActive);
 
     // Danh sách Phiếu 1 khả dụng để chọn liên kết (theo nhà thầu + bếp ăn đã
-    // chọn) — KHÔNG bắt buộc: ngày đó có thể không lập Phiếu 1 cho bếp ăn,
-    // khi đó bỏ trống để nhập tay điểm VSATTP sau.
+    // chọn, backend đã lọc sẵn đúng phòng ban của người đang lập + chỉ Phiếu
+    // 1 ĐÃ DUYỆT — xem Phieu2Service.DanhSachPhieu1KhaDungAsync) — KHÔNG bắt
+    // buộc: ngày đó có thể không lập Phiếu 1 cho bếp ăn, khi đó bỏ trống để
+    // nhập tay điểm VSATTP sau.
     const { data: danhSachPhieu1KhaDung = [] } = useDanhSachPhieu1KhaDungQuery(
         { nhaThauId: nhaThauId!, bepAnId },
         { skip: !nhaThauId }
+    );
+    // Lọc thêm theo đúng 1 ngày (dateonly) client-side cho đỡ cuộn tìm khi
+    // danh sách còn dài.
+    const danhSachPhieu1DaLoc = danhSachPhieu1KhaDung.filter(p1 =>
+        !locNgayP1 || dayjs(p1.ngayKiemTra).isSame(locNgayP1, "day")
     );
 
     // Chi tiết Phiếu 1 đã chọn — để lấy điểm VSATTP xem trước. Dùng
@@ -311,10 +340,33 @@ const Phieu2FormPage: React.FC = () => {
     };
 
     const luuGhiChuModal = (html: string) => {
+        if (modalGhiChu.laYKien) {
+            setModalGhiChu(prev => ({ ...prev, open: false }));
+            if (coTheSua) {
+                // Còn sửa được: chỉ cập nhật state, gộp lưu chung với nút "Lưu
+                // thay đổi" chính (xem luuPhieu) — đỡ gọi API 2 lần.
+                setYKien(html);
+            } else {
+                // Phiếu đã ký — không còn nút "Lưu thay đổi" để gộp, phải lưu
+                // ngay tại đây.
+                xuLyLuuYKien(html);
+            }
+            return;
+        }
+
         if (modalGhiChu.maTieuChi) {
             capNhatTieuChi(modalGhiChu.maTieuChi, { ghiChu: html });
         }
         setModalGhiChu(prev => ({ ...prev, open: false }));
+    };
+
+    const moModalYKien = () => {
+        setModalGhiChu({
+            open: true,
+            laYKien: true,
+            title: "Soạn ý kiến / phản hồi của nhà thầu",
+            value: yKien,
+        });
     };
 
     // ============================================================
@@ -359,6 +411,18 @@ const Phieu2FormPage: React.FC = () => {
                 navigator(`/phieu2/${ketQua.phieu.id}`);
             } else {
                 await suaPhieu2({ id: phieuId!, body: payload }).unwrap();
+                // Gộp lưu luôn Ý kiến/phản hồi nhà thầu vào nút "Lưu thay đổi" —
+                // đỡ phải bấm 2 lần. Chỉ còn cần nút "Lưu ý kiến phản hồi" riêng ở
+                // TinyMceInline cho trường hợp phiếu đã ký (coTheSua = false, nút
+                // này ẩn), lúc đó nhà thầu vẫn cần gửi phản hồi được.
+                await phanHoiYKienNhaThau({
+                    id: phieuId!,
+                    body: {
+                        yKien,
+                        nguoiPhanHoi,
+                        ngayPhanHoi: ngayPhanHoi?.format("YYYY-MM-DD"),
+                    },
+                }).unwrap();
                 dispatch(
                     setNotify({
                         typeNotify: "success",
@@ -452,6 +516,43 @@ const Phieu2FormPage: React.FC = () => {
         }
     };
 
+    const layThamSoXuatPhieu2 = () => ({
+        soHieu: phieu?.soHieu,
+        ngayLap: phieu?.ngayTao,
+        tenNhaThau: tenNhaThau(nhaThauId),
+        ngayKiemTra: thoiGianTu ? thoiGianTu.format("DD/MM/YYYY") : "........................",
+        thoiGianKiemTraText,
+        viTriKiemTra,
+        danhSachTieuChi: danhSachTieuChi.map(tc => ({
+            maTieuChi: tc.maTieuChi,
+            tenTieuChi: tc.tenTieuChi || "",
+            dat: tc.dat,
+            khongDat: tc.khongDat,
+            diem: tc.maTieuChi === "VSATTP" ? tc.diem : undefined,
+            ghiChuHtml: tc.ghiChu,
+        })),
+        yKienHtml: yKien,
+        chuKy: tienDoKy.map(b => ({
+            tenBuoc: b.tenBuoc,
+            trangThai: b.trangThai,
+            ghiChu: b.ghiChu,
+            ngayKy: b.ngayKy,
+            nguoiKyHoTen: b.nguoiKyHoTen,
+            duongDanChuKy: b.duongDanChuKy,
+        })),
+    });
+
+    const xuLyXuatWord = async () => {
+        setDangXuatWord(true);
+        try {
+            await xuatWordPhieu2(layThamSoXuatPhieu2());
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Word thất bại", messageNotify: "" }));
+        } finally {
+            setDangXuatWord(false);
+        }
+    };
+
     const soTieuChiDat = danhSachTieuChi.filter(tc => tc.dat).length;
     const soTieuChiKhongDat = danhSachTieuChi.filter(tc => tc.khongDat).length;
     // Mẫu số = số tiêu chí ĐÃ được đánh giá (dat hoặc khongDat), không cố định
@@ -524,12 +625,46 @@ const Phieu2FormPage: React.FC = () => {
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}
+                extraButtons={
+                    !laTaoMoi && (
+                        <Button
+                            className="no-print"
+                            icon={<FaFileWord />}
+                            loading={dangXuatWord}
+                            onClick={xuLyXuatWord}
+                        >
+                            Xuất Word
+                        </Button>
+                    )
+                }
             />
 
             {/* 2. FORM THÔNG TIN NHẬP LIỆU (NO-PRINT) */}
             <PhieuInputCard>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-                        <div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 lg:grid-cols-12 gap-3">
+                        <div className="lg:col-span-1">
+                            <div className="mb-1 text-xs font-medium">Ngày kiểm tra</div>
+                            <DatePicker
+                                className="w-full"
+                                size="small"
+                                format="DD/MM/YYYY"
+                                disabled={!coTheSua}
+                                value={thoiGianTu}
+                                // Không cho lập phiếu với ngày kiểm tra trong tương lai —
+                                // chỉ chọn được hôm nay hoặc trước đó.
+                                disabledDate={(current) => !!current && current > dayjs().endOf("day")}
+                                onChange={v => {
+                                    setThoiGianTu(v);
+                                    // Tháng/Năm của phiếu lấy luôn theo Ngày kiểm tra — gộp
+                                    // chung 1 input thay vì để 2 dropdown Tháng/Năm riêng.
+                                    if (v) {
+                                        setThang(v.month() + 1);
+                                        setNam(v.year());
+                                    }
+                                }}
+                            />
+                        </div>
+                        <div className="lg:col-span-2">
                             <div className="mb-1 text-xs font-medium">Nhà thầu</div>
                             <Select
                                 className="w-full"
@@ -552,7 +687,7 @@ const Phieu2FormPage: React.FC = () => {
                             </Select>
                         </div>
 
-                        <div>
+                        <div className="lg:col-span-2">
                             <div className="mb-1 text-xs font-medium">Bếp ăn (nơi nấu)</div>
                             <Select
                                 className="w-full"
@@ -576,7 +711,7 @@ const Phieu2FormPage: React.FC = () => {
                             </Select>
                         </div>
 
-                        <div>
+                        <div className="lg:col-span-2">
                             <div className="mb-1 text-xs font-medium">
                                 Nhà ăn — có thể chọn nhiều
                             </div>
@@ -599,46 +734,47 @@ const Phieu2FormPage: React.FC = () => {
                             </Select>
                         </div>
 
-                        <div>
+                        <div className="lg:col-span-3">
                             <div className="mb-1 text-xs font-medium">Phiếu 1 (VSATTP) liên kết</div>
+                            {danhSachPhieu1KhaDung.length > 5 && (
+                                <DatePicker
+                                    className="w-full mb-1"
+                                    size="small"
+                                    allowClear
+                                    format="DD/MM/YYYY"
+                                    placeholder="Lọc theo ngày kiểm tra"
+                                    value={locNgayP1}
+                                    onChange={setLocNgayP1}
+                                />
+                            )}
                             <Select
                                 className="w-full"
                                 size="small"
                                 allowClear
+                                showSearch
+                                optionFilterProp="label"
                                 placeholder="-- Không có Phiếu 1 --"
                                 disabled={!coTheSua || !nhaThauId}
                                 value={phieu1Id}
                                 onChange={v => setPhieu1Id(v)}
+                                notFoundContent="Không có Phiếu 1 (đã duyệt) nào khớp bộ lọc"
                             >
-                                {danhSachPhieu1KhaDung.map(p1 => (
-                                    <Select.Option key={p1.id} value={p1.id}>
-                                        {p1.soHieu} — {new Date(p1.ngayKiemTra).toLocaleDateString("vi-VN")} ({tenTrangThaiPhieu(p1.trangThai)})
-                                    </Select.Option>
-                                ))}
+                                {danhSachPhieu1DaLoc.map(p1 => {
+                                    const nhanP1 = `${p1.soHieu} — ${new Date(p1.ngayKiemTra).toLocaleDateString("vi-VN")}`;
+                                    // title = tooltip gốc trình duyệt khi hover, hiện đủ tên
+                                    // dù ô bị cắt bớt do không đủ chỗ hiển thị.
+                                    return (
+                                        <Select.Option key={p1.id} value={p1.id} label={nhanP1} title={nhanP1}>
+                                            {nhanP1}
+                                        </Select.Option>
+                                    );
+                                })}
                             </Select>
                         </div>
 
-                        <div>
-                            <div className="mb-1 text-xs font-medium">Ngày kiểm tra</div>
-                            <DatePicker
-                                className="w-full"
-                                size="small"
-                                format="DD/MM/YYYY"
-                                disabled={!coTheSua}
-                                value={thoiGianTu}
-                                onChange={v => {
-                                    setThoiGianTu(v);
-                                    // Tháng/Năm của phiếu lấy luôn theo Ngày kiểm tra — gộp
-                                    // chung 1 input thay vì để 2 dropdown Tháng/Năm riêng.
-                                    if (v) {
-                                        setThang(v.month() + 1);
-                                        setNam(v.year());
-                                    }
-                                }}
-                            />
-                        </div>
+                        
 
-                        <div>
+                        <div className="lg:col-span-2">
                             <div className="mb-1 text-xs font-medium">Vị trí kiểm tra</div>
                             <Input size="small" disabled value={viTriKiemTra} placeholder="Tự động lấy theo Nhà ăn đã chọn" />
                         </div>
@@ -778,29 +914,40 @@ const Phieu2FormPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Ý kiến nhà thầu — khung TinyMCE hiện thẳng, không qua nút mở
-                    modal. Vẫn giữ nút Lưu riêng (tách khỏi nút "Lưu thay đổi"
-                    chính của phiếu): nhà thầu cần gửi phản hồi ngay cả sau khi
-                    phiếu đã ký/duyệt, lúc đó nút "Lưu thay đổi" đã ẩn đi. */}
+                {/* Ý kiến nhà thầu — hiển thị dạng preview (giống ô Ghi chú của
+                    cột "Không đạt": renderOGhiChu), bấm icon để mở modal TinyMCE
+                    soạn/chèn ảnh, thay vì hiện khung soạn thảo to lù lù ngay trên
+                    trang. Khi còn sửa được (coTheSua), nội dung sau khi lưu ở modal
+                    chỉ cập nhật state, gộp lưu chung với nút "Lưu thay đổi" chính
+                    (xem luuPhieu, luuGhiChuModal) — đỡ gọi API 2 lần. Sau khi phiếu
+                    đã ký/duyệt (coTheSua = false), nút "Lưu thay đổi" chính ẩn đi
+                    nên lưu ngay tại chỗ + hiện thêm nút "Lưu phản hồi" cạnh 2 ô
+                    Người/Ngày phản hồi (đổi thông tin này mà không đụng tới nội
+                    dung trong modal thì vẫn cần cách để lưu). */}
                 <div className="phieu-y-kien">
                     <div className="phieu-ket-luan-title">Ý kiến / phản hồi của nhà thầu</div>
                     {!laTaoMoi ? (
                         <>
-                            <TinyMceInline
-                                className="no-print"
-                                value={yKien}
-                                onChange={setYKien}
-                                onSave={xuLyLuuYKien}
-                                dangLuu={dangLuuYKien}
-                                saveLabel="Lưu ý kiến phản hồi"
-                            />
-                            {yKien ? (
-                                <GhiChuHtml className="ghi-chu-rich-preview print-only" html={yKien} />
-                            ) : (
-                                <span className="print-only text-gray-400 text-sm">Chưa có ý kiến</span>
-                            )}
+                            <div className="ghi-chu-cell-wrapper">
+                                {yKien ? (
+                                    <GhiChuHtml
+                                        className="ghi-chu-rich-preview ghi-chu-content"
+                                        html={yKien}
+                                    />
+                                ) : (
+                                    <span className="text-gray-400 text-sm">Chưa có ý kiến</span>
+                                )}
+                                <Tooltip title="Soạn ý kiến / chèn ảnh minh chứng">
+                                    <Button
+                                        className="no-print ghi-chu-btn-edit"
+                                        size="small"
+                                        icon={<FaEdit />}
+                                        onClick={moModalYKien}
+                                    />
+                                </Tooltip>
+                            </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 no-print">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-3 no-print items-end">
                                 <div>
                                     <div className="mb-1 font-medium">Người phản hồi</div>
                                     <Input
@@ -818,6 +965,20 @@ const Phieu2FormPage: React.FC = () => {
                                     />
                                 </div>
                             </div>
+
+                            {!coTheSua && (
+                                <div className="mt-3 no-print">
+                                    <Button
+                                        type="primary"
+                                        size="small"
+                                        icon={<FaSave />}
+                                        loading={dangLuuYKien}
+                                        onClick={() => xuLyLuuYKien(yKien)}
+                                    >
+                                        Lưu phản hồi
+                                    </Button>
+                                </div>
+                            )}
                         </>
                     ) : (
                         <div className="text-gray-400 no-print">
@@ -849,7 +1010,7 @@ const Phieu2FormPage: React.FC = () => {
                 coTheSua={coTheSua}
                 laTaoMoi={laTaoMoi}
                 trangThai={phieu?.trangThai}
-                dangLuu={dangThem || dangSua}
+                dangLuu={dangThem || dangSua || dangLuuYKien}
                 dangGuiKy={dangGuiKy}
                 onLuu={luuPhieu}
                 onGuiKy={xuLyGuiKy}

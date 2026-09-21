@@ -8,6 +8,8 @@ import { useNavigate, useParams } from "react-router-dom";
 import LayoutV2Component from "../../components/LayoutV2Component";
 import {
     BangCoDinhTable,
+    DoanBuilder,
+    DoanBuilderItem,
     PhieuActions,
     PhieuHeader,
     PhieuInputCard,
@@ -15,6 +17,7 @@ import {
 } from "../../components/phieu";
 
 import { PHIEU4_BANG1_CONFIG, PHIEU4_BANG2_CONFIG } from "../../config/phieu4BangConfig";
+import { DoanRequest } from "../../models/DoanModel";
 import NhaThauModel from "../../models/NhaThauModel";
 import { Phieu4DongModel } from "../../models/Phieu4ResponseModel";
 
@@ -23,8 +26,10 @@ import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
 import {
     useCapNhatGiaTriPhieu4Mutation,
     useChiTietPhieu4Query,
+    useThemDoanPhieu4Mutation,
     useThemNhaThauPhieu4Mutation,
     useThemPhieu4Mutation,
+    useXoaDoanPhieu4Mutation,
     useXoaNhaThauPhieu4Mutation,
     useTinhLaiPhieu4Mutation,
     useXoaPhieu4Mutation,
@@ -35,6 +40,8 @@ import { RootType } from "../../store/types";
 import xuatWordPhieu4 from "../../utils/xuatWordPhieu4";
 
 import "./Phieu4FormPage.scss";
+
+const { RangePicker } = DatePicker;
 
 const Phieu4FormPage: React.FC = () => {
     const { id } = useParams();
@@ -68,16 +75,23 @@ const Phieu4FormPage: React.FC = () => {
     const [themNhaThauPhieu4, { isLoading: dangThemNhaThau }] = useThemNhaThauPhieu4Mutation();
     const [xoaNhaThauPhieu4, { isLoading: dangXoaNhaThau }] = useXoaNhaThauPhieu4Mutation();
     const [capNhatGiaTriPhieu4, { isLoading: dangLuuGiaTri }] = useCapNhatGiaTriPhieu4Mutation();
+    const [themDoanPhieu4, { isLoading: dangThemDoan }] = useThemDoanPhieu4Mutation();
+    const [xoaDoanPhieu4] = useXoaDoanPhieu4Mutation();
 
     // ============================================================
     // LOCAL STATES
     // ============================================================
 
-    const [tuNgay, setTuNgay] = useState<dayjs.Dayjs | null>(dayjs().startOf("month"));
-    const [denNgay, setDenNgay] = useState<dayjs.Dayjs | null>(dayjs().endOf("month"));
+    // tuNgay/denNgay giờ chỉ để HIỂN THỊ (server tự tính = MIN/MAX toàn bộ
+    // đoạn của mọi cột nhà thầu) — không còn nhập tay lúc tạo mới.
+    const [tuNgay, setTuNgay] = useState<dayjs.Dayjs | null>(null);
+    const [denNgay, setDenNgay] = useState<dayjs.Dayjs | null>(null);
     const [nhaThauIds, setNhaThauIds] = useState<number[]>([]);
     const [nhaThauMoiId, setNhaThauMoiId] = useState<number | undefined>(undefined);
     const [dangXuatWord, setDangXuatWord] = useState(false);
+    // Đoạn thời gian & địa điểm — build mode (form tạo mới, chưa có phiếu),
+    // khóa theo nhaThauId đang chọn, key tạm; xem DoanBuilder.
+    const [doanTheoNhaThauMoi, setDoanTheoNhaThauMoi] = useState<Record<number, DoanBuilderItem[]>>({});
     // Ô "Đa dạng thực đơn" (Bảng 2, NhomSo=1/Stt=3) — DUY NHẤT còn nhập tay
     // (không có nguồn tự động, xem Phieu4Service.TieuChiBang2), khóa theo
     // NhaThauId, chỉ chứa ô người dùng vừa sửa (chưa lưu).
@@ -204,19 +218,57 @@ const Phieu4FormPage: React.FC = () => {
             return;
         }
         if (!tuNgay || !denNgay) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: "Vui lòng chọn khoảng ngày", messageNotify: "" }));
+            dispatch(setNotify({ typeNotify: "error", titleNotify: "Vui lòng chọn khoảng ngày lập phiếu", messageNotify: "" }));
             return;
         }
         try {
+            const nhaThau = nhaThauIds.map((nhaThauId) => ({
+                nhaThauId,
+                doan: (doanTheoNhaThauMoi[nhaThauId] ?? []).map(({ key, ...rest }) => rest),
+            }));
             const ketQua = await themPhieu4({
                 tuNgay: tuNgay.format("YYYY-MM-DD"),
                 denNgay: denNgay.format("YYYY-MM-DD"),
-                nhaThauIds,
+                nhaThau,
             }).unwrap();
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã lập phiếu tổng hợp", messageNotify: "" }));
             navigator(`/phieu4/${ketQua.phieu.id}`);
         } catch (error: any) {
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Lập phiếu thất bại", messageNotify: "" }));
+        }
+    };
+
+    // Build mode (form tạo mới) — chỉ mutate state cục bộ theo từng nhà
+    // thầu đang chọn, gộp vào body lúc bấm "Lập phiếu" (xem xuLyTaoMoi).
+    const xuLyThemDoanMoi = (nhaThauId: number, doan: DoanRequest) => {
+        setDoanTheoNhaThauMoi((prev) => ({
+            ...prev,
+            [nhaThauId]: [...(prev[nhaThauId] ?? []), { ...doan, key: `tam-${Date.now()}-${(prev[nhaThauId] ?? []).length}` }],
+        }));
+    };
+    const xuLyXoaDoanMoi = (nhaThauId: number, key: number | string) => {
+        setDoanTheoNhaThauMoi((prev) => ({
+            ...prev,
+            [nhaThauId]: (prev[nhaThauId] ?? []).filter((d) => d.key !== key),
+        }));
+    };
+
+    // API mode (phiếu đã tồn tại, còn Nháp/Từ chối) — gọi API ngay theo
+    // đúng cột nhà thầu, tag invalidation của RTK Query tự refetch chi tiết.
+    const xuLyThemDoan = async (nhaThauId: number, doan: DoanRequest) => {
+        try {
+            await themDoanPhieu4({ id: phieuId!, nhaThauId, body: doan }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã thêm đoạn", messageNotify: "" }));
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Thêm đoạn thất bại", messageNotify: "" }));
+        }
+    };
+    const xuLyXoaDoan = async (nhaThauId: number, key: number | string) => {
+        try {
+            await xoaDoanPhieu4({ id: phieuId!, nhaThauId, doanId: Number(key) }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã xóa đoạn", messageNotify: "" }));
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Xóa đoạn thất bại", messageNotify: "" }));
         }
     };
 
@@ -371,33 +423,62 @@ const Phieu4FormPage: React.FC = () => {
 
             <PhieuInputCard title="Thông tin phiếu">
                 {laTaoMoi ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                        <div>
-                            <div className="mb-1 text-xs font-medium">Từ ngày</div>
-                            <DatePicker className="w-full" size="small" format="DD/MM/YYYY" value={tuNgay} onChange={v => setTuNgay(v)} />
+                    <>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <div className="mb-1 text-xs font-medium">Khoảng ngày lập phiếu</div>
+                                <RangePicker
+                                    className="w-full"
+                                    size="small"
+                                    format="DD/MM/YYYY"
+                                    value={[tuNgay, denNgay]}
+                                    onChange={(v) => {
+                                        setTuNgay(v?.[0] ?? null);
+                                        setDenNgay(v?.[1] ?? null);
+                                    }}
+                                />
+                            </div>
+                            <div>
+                                <div className="mb-1 text-xs font-medium">Nhà thầu (cột trong bảng)</div>
+                                <Select
+                                    className="w-full"
+                                    size="small"
+                                    mode="multiple"
+                                    placeholder="-- Chọn các nhà thầu --"
+                                    showSearch
+                                    optionFilterProp="children"
+                                    value={nhaThauIds}
+                                    onChange={v => setNhaThauIds(v)}
+                                >
+                                    {danhSachNhaThau.map((nt: NhaThauModel) => (
+                                        <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                                    ))}
+                                </Select>
+                            </div>
                         </div>
-                        <div>
-                            <div className="mb-1 text-xs font-medium">Đến ngày</div>
-                            <DatePicker className="w-full" size="small" format="DD/MM/YYYY" value={denNgay} onChange={v => setDenNgay(v)} />
-                        </div>
-                        <div>
-                            <div className="mb-1 text-xs font-medium">Nhà thầu (cột trong bảng)</div>
-                            <Select
-                                className="w-full"
-                                size="small"
-                                mode="multiple"
-                                placeholder="-- Chọn các nhà thầu --"
-                                showSearch
-                                optionFilterProp="children"
-                                value={nhaThauIds}
-                                onChange={v => setNhaThauIds(v)}
-                            >
-                                {danhSachNhaThau.map((nt: NhaThauModel) => (
-                                    <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                        {nhaThauIds.length > 0 && (
+                            // Mỗi nhà thầu 1 CỘT gọn (không còn xếp chồng cả chiều
+                            // ngang lẫn dọc) — bọc flex-wrap để tự xuống dòng ở màn
+                            // hẹp thay vì buộc cuộn ngang.
+                            <div className="mt-3 flex flex-wrap gap-2 items-start">
+                                {nhaThauIds.map(nhaThauId => (
+                                    <div key={nhaThauId} className="border rounded p-2 flex-1 min-w-[320px]">
+                                        <div className="text-xs font-medium mb-1 truncate" title={tenNhaThau(nhaThauId)}>
+                                            {tenNhaThau(nhaThauId)}
+                                        </div>
+                                        <DoanBuilder
+                                            items={doanTheoNhaThauMoi[nhaThauId] ?? []}
+                                            coTheSua
+                                            onThem={(doan) => xuLyThemDoanMoi(nhaThauId, doan)}
+                                            onXoa={(key) => xuLyXoaDoanMoi(nhaThauId, key)}
+                                            ngayToiThieu={tuNgay ?? undefined}
+                                            ngayToiDa={denNgay ?? undefined}
+                                        />
+                                    </div>
                                 ))}
-                            </Select>
-                        </div>
-                    </div>
+                            </div>
+                        )}
+                    </>
                 ) : (
                     <>
                         <div className="grid grid-cols-1 sm:grid-cols-5 gap-3">
@@ -472,8 +553,33 @@ const Phieu4FormPage: React.FC = () => {
                             )}
                         </div>
                         <div className="text-xs text-gray-400 mt-2">
-                            Khoảng ngày cố định từ lúc lập phiếu.
+                            Khoảng ngày cố định theo lúc lập phiếu, không đổi được nữa.
                             {coTheSua ? " Có thể thêm/bớt nhà thầu." : " Danh sách nhà thầu không còn sửa được nữa."}
+                        </div>
+
+                        {/* Đoạn thời gian & địa điểm — theo TỪNG cột nhà thầu (mỗi
+                            cột tương đương 1 "Phiếu 3 con"), thay cho suy luận tự
+                            động cũ. Mỗi nhà thầu 1 CỘT gọn, xếp cạnh nhau (flex-wrap
+                            tự xuống dòng ở màn hẹp) thay vì xếp chồng cả trang.
+                            Chỉ cho chọn ngày TRONG khoảng ngày lập phiếu (tuNgay/
+                            denNgay — cố định từ lúc tạo, xem Phieu4Service.ThemAsync). */}
+                        <div className="mt-3 flex flex-wrap gap-2 items-start">
+                            {cotNhaThau.map(cot => (
+                                <div key={cot.nhaThauId} className="border rounded p-2 flex-1 min-w-[320px]">
+                                    <div className="text-xs font-medium mb-1 truncate" title={tenNhaThau(cot.nhaThauId)}>
+                                        {tenNhaThau(cot.nhaThauId)}
+                                    </div>
+                                    <DoanBuilder
+                                        items={cot.doan.map(d => ({ ...d, key: d.id }))}
+                                        coTheSua={coTheSua}
+                                        dangThem={dangThemDoan}
+                                        onThem={(doan) => xuLyThemDoan(cot.nhaThauId, doan)}
+                                        onXoa={(key) => xuLyXoaDoan(cot.nhaThauId, key)}
+                                        ngayToiThieu={tuNgay ?? undefined}
+                                        ngayToiDa={denNgay ?? undefined}
+                                    />
+                                </div>
+                            ))}
                         </div>
                     </>
                 )}

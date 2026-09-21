@@ -1,5 +1,5 @@
 import axios from "axios";
-import LinkServer from "./LinkServer";
+import LinkServerV2 from "../services/LinkServerV2";
 import { setNotify } from "../store/notifycationSlide";
 import { Dispatch } from "redux";
 
@@ -10,7 +10,7 @@ const KhaoSatAction = async (_diaDiem_ID: number, _diemDanhGia: number, dispatch
         diemDanhGia: _diemDanhGia
     };
 
-    const url = `${LinkServer}/Evaluates`;
+    const url = `${LinkServerV2}/Evaluates`;
 
     try {
         const res = await axios.post(url, body);

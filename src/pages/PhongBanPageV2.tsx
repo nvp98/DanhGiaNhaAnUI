@@ -1,4 +1,4 @@
-import { Button, Form, Input, Modal, Popconfirm, Space, Switch, Table, TableColumnsType, Tag } from "antd";
+import { Button, Checkbox, Form, Input, Modal, Popconfirm, Space, Switch, Table, TableColumnsType, Tag } from "antd";
 import { useForm } from "antd/es/form/Form";
 import React, { useEffect, useState } from "react";
 import { FaPlus, FaTrash } from "react-icons/fa";
@@ -12,6 +12,7 @@ import PhongBanModel from "../models/PhongBanModel";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { DS_LOAI_PHIEU, tenLoaiPhieu } from "./NhomTieuChiPage";
 
 const PhongBanPageV2: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
@@ -53,6 +54,7 @@ const PhongBanPageV2: React.FC = () => {
             ma: phongBan.ma,
             ten: phongBan.ten,
             dangHoatDong: phongBan.dangHoatDong,
+            cacLoaiPhieuApDung: phongBan.danhSachLoaiPhieu,
         });
         setMoModal(true);
     };
@@ -62,6 +64,7 @@ const PhongBanPageV2: React.FC = () => {
             ma: values.ma,
             ten: values.ten,
             dangHoatDong: !!values.dangHoatDong,
+            cacLoaiPhieuApDung: values.cacLoaiPhieuApDung || [],
         };
 
         try {
@@ -116,6 +119,14 @@ const PhongBanPageV2: React.FC = () => {
             key: 'dangHoatDong',
             width: 160,
             render: (dangHoatDong) => dangHoatDong ? <Tag color="success">Đang hoạt động</Tag> : <Tag>Ngừng hoạt động</Tag>,
+        },
+        {
+            title: 'Loại phiếu xử lý',
+            dataIndex: 'danhSachLoaiPhieu',
+            key: 'danhSachLoaiPhieu',
+            render: (danhSachLoaiPhieu: string[]) => danhSachLoaiPhieu.length === 0
+                ? <span className="text-gray-400">Không giới hạn (cả 4 phiếu)</span>
+                : danhSachLoaiPhieu.map(lp => <Tag key={lp} color="blue">{tenLoaiPhieu(lp)}</Tag>),
         },
         {
             title: '',
@@ -184,6 +195,17 @@ const PhongBanPageV2: React.FC = () => {
                 </Form.Item>
                 <Form.Item label="Đang hoạt động" name="dangHoatDong" valuePropName="checked">
                     <Switch />
+                </Form.Item>
+                <Form.Item
+                    label="Loại phiếu xử lý"
+                    name="cacLoaiPhieuApDung"
+                    extra="Để trống = không giới hạn (phòng ban xử lý được cả 4 phiếu). Chỉ tick khi muốn GIỚI HẠN phòng ban này còn đúng những loại phiếu đã chọn."
+                >
+                    <Checkbox.Group className="flex flex-col gap-2">
+                        {DS_LOAI_PHIEU.map(t => (
+                            <Checkbox key={t.value} value={t.value}>{t.label}</Checkbox>
+                        ))}
+                    </Checkbox.Group>
                 </Form.Item>
             </Form>
         </Modal>

@@ -1,11 +1,12 @@
 import { Drawer, Dropdown, Grid, Layout, Menu, MenuProps, Tag } from "antd";
 import React, { ReactNode, useEffect, useRef, useState } from "react";
-import { FaAngleDoubleLeft, FaAngleDoubleRight, FaBars, FaChevronDown, FaHome, FaUserCircle } from "react-icons/fa";
+import { FaAngleDoubleLeft, FaAngleDoubleRight, FaArrowLeft, FaBars, FaChevronDown, FaExchangeAlt, FaHome, FaUserCircle } from "react-icons/fa";
 import { IoLogOutOutline, IoPersonOutline } from "react-icons/io5";
 import { useSelector } from "react-redux";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { layNhomMenuHienThi } from "../config/menuV2";
 import { useDangXuatV2Mutation } from "../services/authApiV2";
+import { useLayHoSoQuery } from "../services/profileApiV2";
 import { RootType } from "../store/types";
 
 const { Header, Content, Sider } = Layout;
@@ -123,7 +124,10 @@ const LayoutV2Component: React.FC<LayoutV2Props> = ({ children }) => {
         if (key === "logout") xuLyDangXuat();
     };
 
-    const nhomMenu = layNhomMenuHienThi(authV2.nguoiDung);
+    // Quyền theo Phiếu có hiệu lực NGAY (không cần đăng xuất/đăng nhập lại)
+    // -> đọc live qua API riêng thay vì nhét vào JWT (xem profileApiV2.ts).
+    const { data: hoSo } = useLayHoSoQuery(undefined, { skip: !authV2.isAuthenticated });
+    const nhomMenu = layNhomMenuHienThi(authV2.nguoiDung, hoSo?.danhSachLoaiPhieuDuocXem);
     const sidebarItems: MenuProps["items"] = [
         { key: "/v2", icon: <FaHome />, label: "Trang chủ" },
         ...nhomMenu.map(nhom => ({
@@ -246,7 +250,23 @@ const LayoutV2Component: React.FC<LayoutV2Props> = ({ children }) => {
                             <FaBars />
                         </button>
                     )}
-                    <div className="flex justify-end items-center gap-2 sm:gap-4 overflow-hidden">
+                    <div className="flex justify-end items-center gap-2 sm:gap-4 overflow-hidden flex-1">
+                        <button
+                            onClick={() => navigator(-1)}
+                            title="Quay lại trang trước"
+                            className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-zinc-100 text-zinc-600 shrink-0 mr-auto"
+                        >
+                            <FaArrowLeft />
+                            <span className="hidden sm:inline font-medium">Quay lại</span>
+                        </button>
+                        <button
+                            onClick={() => navigator("/")}
+                            title="Chuyển sang trang khảo sát"
+                            className="flex items-center gap-2 px-2 py-1 rounded-lg hover:bg-zinc-100 text-zinc-600 shrink-0"
+                        >
+                            <FaExchangeAlt />
+                            <span className="hidden sm:inline font-medium">Về trang khảo sát</span>
+                        </button>
                         <div className="hidden sm:flex items-center gap-2">
                             {authV2.nguoiDung?.danhSachVaiTro.map(vt => <Tag key={vt} color="blue">{vt}</Tag>)}
                         </div>

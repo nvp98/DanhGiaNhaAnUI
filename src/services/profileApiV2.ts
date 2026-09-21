@@ -15,6 +15,15 @@ export interface DoiMatKhauParamsV2 {
 
 export const profileApiV2 = apiSliceV2.injectEndpoints({
     endpoints: (builder) => ({
+        // Hồ sơ CỦA CHÍNH MÌNH (khác chiTietNguoiDung ở nguoiDungApiV2 — đó là
+        // Admin xem hồ sơ NGƯỜI KHÁC, cần quyền QUAN_LY_TAI_KHOAN). Dùng để
+        // sidebar/TrangChu đọc danhSachLoaiPhieuDuocXem — gọi API riêng (không
+        // nhét vào JWT/authV2.nguoiDung) để phân quyền theo Phiếu có hiệu lực
+        // NGAY, không cần đăng xuất/đăng nhập lại (xem huongdanquanlytaikhoan.md).
+        layHoSo: builder.query<NguoiDungListItemModel, void>({
+            query: () => '/profile',
+            providesTags: [{ type: 'NguoiDung', id: 'ME' }],
+        }),
         capNhatProfile: builder.mutation<NguoiDungListItemModel, CapNhatProfileParamsV2>({
             query: (body) => ({ url: '/profile', method: 'PUT', body }),
             onQueryStarted: async (_arg, { dispatch, queryFulfilled }) => {
@@ -28,4 +37,4 @@ export const profileApiV2 = apiSliceV2.injectEndpoints({
     }),
 });
 
-export const { useCapNhatProfileMutation, useDoiMatKhauMutation } = profileApiV2;
+export const { useLayHoSoQuery, useCapNhatProfileMutation, useDoiMatKhauMutation } = profileApiV2;
