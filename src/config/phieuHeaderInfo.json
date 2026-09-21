@@ -1,0 +1,22 @@
+{
+    "PHIEU1": {
+        "soBieuMau": "BM.01/HD.18.16.07",
+        "ngayHieuLuc": "05/11/2025",
+        "lanSuaDoi": "01"
+    },
+    "PHIEU2": {
+        "soBieuMau": "BM.02/HD.22.04",
+        "ngayHieuLuc": "05/07/2025",
+        "lanSuaDoi": "00"
+    },
+    "PHIEU3": {
+        "soBieuMau": "BM.08/HD.22.04",
+        "ngayHieuLuc": "05/07/2025",
+        "lanSuaDoi": "00"
+    },
+    "PHIEU4": {
+        "soBieuMau": "BM.09/HD.22.04",
+        "ngayHieuLuc": "05/07/2025",
+        "lanSuaDoi": "00"
+    }
+}

@@ -1,0 +1,118 @@
+@use "../../styles/phieu" as *;
+
+/* ============================================================
+   TÙY BIẾN CHO PHIẾU 3 (BÁO CÁO THÁNG — BẢNG 1 / BẢNG 2)
+   ============================================================ */
+
+.phieu3-header-info {
+    text-align: center;
+    font-size: $fs-header-info;
+    line-height: 1.5;
+    margin-bottom: 12px;
+}
+
+.phieu3-section-title {
+    font-weight: 700;
+    font-size: $fs-ket-luan-title;
+    margin-bottom: 6px;
+}
+
+.phieu3-can-cu-list {
+    font-size: $fs-table;
+    line-height: 1.6;
+    margin-bottom: 10px;
+
+    // Số hiệu Phiếu 2 / ngày kiểm tra Phiếu 1 — bấm để điều hướng thẳng tới
+    // phiếu chi tiết tương ứng (xem renderDsClickable ở Phieu3FormPage.tsx).
+    .lien-ket-phieu {
+        color: #004aad;
+        cursor: pointer;
+
+        &:hover {
+            text-decoration: underline;
+        }
+    }
+}
+
+.phieu3-bang-title {
+    font-weight: 700;
+    font-size: $fs-ket-luan-title;
+    margin-bottom: 5px;
+    display: flex;
+    align-items: center;
+}
+
+.phieu3-bang1-table,
+.phieu3-bang2-table {
+    .cot-noi-dung {
+        width: 20%;
+        text-align: left;
+    }
+
+    th {
+        text-align: center;
+        font-size: 12px;
+        line-height: 1.25;
+    }
+
+    .o-noi-dung {
+        text-align: left;
+        vertical-align: middle !important;
+    }
+
+    .o-so {
+        text-align: center;
+        vertical-align: middle !important;
+        padding: 2px !important;
+
+        // Ô từng bị sửa tay trước đây (khác giá trị hệ thống tự tính) — hover
+        // để xem giá trị hệ thống gốc vs giá trị đã sửa, xem renderOBang1.
+        // Bảng 1/2 giờ chỉ hiển thị (không còn input), nên đây là <span>.
+        .o-so-sua-tay {
+            display: inline-block;
+            padding: 0 4px;
+            background-color: #fffbe6;
+        }
+    }
+
+    .o-so-tong {
+        font-weight: 700;
+    }
+}
+
+.no-print-mb {
+    margin-bottom: 5px;
+}
+
+.phieu-y-kien {
+    .ghi-chu-cell-wrapper {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        width: 100%;
+        min-height: 38px;
+        padding: 8px 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        background: #fff;
+
+        .ghi-chu-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .ghi-chu-btn-edit {
+            flex-shrink: 0;
+            padding: 0 4px;
+            height: 24px;
+            line-height: 24px;
+            color: #004aad;
+            border-color: #d9d9d9;
+
+            &:hover {
+                color: #002b66;
+                border-color: #004aad;
+            }
+        }
+    }
+}

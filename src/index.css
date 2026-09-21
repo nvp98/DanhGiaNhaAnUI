@@ -70,3 +70,23 @@ button:focus-visible {
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Sidebar V2: thanh cuộn ẩn mặc định, chỉ hiện trong lúc đang cuộn (class
+   .dang-cuon được LayoutV2Component bật/tắt bằng JS theo sự kiện scroll). */
+.sidebar-v2-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.sidebar-v2-scroll::-webkit-scrollbar {
+  width: 6px;
+}
+.sidebar-v2-scroll::-webkit-scrollbar-thumb {
+  background: transparent;
+  border-radius: 9999px;
+}
+.sidebar-v2-scroll.dang-cuon {
+  scrollbar-color: rgba(0, 0, 0, 0.25) transparent;
+}
+.sidebar-v2-scroll.dang-cuon::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.25);
+}

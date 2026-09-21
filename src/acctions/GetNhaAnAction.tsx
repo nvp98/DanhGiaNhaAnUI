@@ -1,12 +1,12 @@
 import axios from "axios";
 import NhaAnModel from "../models/NhaAnModel";
-import LinkServer from "./LinkServer";
+import LinkServerV2 from "../services/LinkServerV2";
 
 
 
 const GetNhaAnAction = async (): Promise<NhaAnModel[]> => {
    
-    const url = `${LinkServer}/Location`;
+    const url = `${LinkServerV2}/Location`;
 
     try {
         const res = await axios({

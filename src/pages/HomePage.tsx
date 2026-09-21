@@ -1,5 +1,6 @@
 import { Input, Modal, Select, Spin } from "antd";
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { FaCheck } from "react-icons/fa";
 import NhaAnModel from "../models/NhaAnModel";
 import GetNhaAnAction from "../acctions/GetNhaAnAction";
@@ -10,6 +11,8 @@ import { RootType } from "../store/types";
 import KhaoSatAction from "../acctions/KhaoSatAction";
 import { BsFullscreen, BsFullscreenExit } from "react-icons/bs";
 import { BiLock, BiLockOpen } from "react-icons/bi";
+import { Capacitor } from "@capacitor/core";
+import ImmersiveMode from "../plugins/ImmersiveMode";
 
 
 
@@ -25,6 +28,7 @@ const HomePage: React.FC = () => {
     const [isModalPass, setIsModalPass] = useState(false);
     const [isBlock, setIsBlock] = useState(true);
     const [pass, setPass] = useState("")
+    const navigate = useNavigate();
     const getData = async () => {
         setLoading(true)
         const listNhaAn = await GetNhaAnAction()
@@ -41,15 +45,37 @@ const HomePage: React.FC = () => {
         }, []
     )
 
-    const toggleFullScreen = () => {
-        if (!document.fullscreenElement) {
-          document.documentElement.requestFullscreen();
-          setIsFullScreen(true);
-        } else {
-          document.exitFullscreen();
-          setIsFullScreen(false);
+    const toggleFullScreen = async () => {
+        const nextIsFullScreen = !isFullScreen;
+
+        // Web: Fullscreen API ẩn chrome của trình duyệt.
+        try {
+            if (nextIsFullScreen && !document.fullscreenElement) {
+                await document.documentElement.requestFullscreen();
+            } else if (!nextIsFullScreen && document.fullscreenElement) {
+                await document.exitFullscreen();
+            }
+        } catch (error) {
+            console.error("Fullscreen API error:", error);
         }
-      };
+
+        // App hybrid (Capacitor): status bar + navigation bar là native,
+        // Fullscreen API không ẩn được nên phải gọi riêng qua plugin
+        // ImmersiveMode (android/.../ImmersiveModePlugin.java).
+        if (Capacitor.isNativePlatform()) {
+            try {
+                if (nextIsFullScreen) {
+                    await ImmersiveMode.enable();
+                } else {
+                    await ImmersiveMode.disable();
+                }
+            } catch (error) {
+                console.error("ImmersiveMode error:", error);
+            }
+        }
+
+        setIsFullScreen(nextIsFullScreen);
+    };
 
 
  
@@ -104,9 +130,15 @@ const HomePage: React.FC = () => {
                 <button onClick={()=>setIsBlock(true)} className="text-white border-[1px] p-2 rounded-md">
                      <BiLockOpen/>
                 </button>
-            
+
             }
-            
+            {/* {
+                isBlock? null:
+                
+            } */}
+            <button onClick={()=>navigate("/v2")} className="text-white border-[1px] p-2 rounded-md text-sm max-lg:text-xs">
+                    Trang quản trị
+                </button>
             </div>
             
             </div>

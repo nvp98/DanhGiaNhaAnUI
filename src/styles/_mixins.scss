@@ -1,0 +1,20 @@
+// ============================================================
+// MIXINS FOR PHIẾU
+// ============================================================
+
+@mixin flex-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+@mixin table-bordered($border-color) {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+
+    th, td {
+        border: 1px solid $border-color;
+        vertical-align: middle;
+    }
+}
