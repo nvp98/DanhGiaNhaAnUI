@@ -34,13 +34,18 @@ const baseQueryWith401Handler: BaseQueryFn<string | FetchArgs, unknown, FetchBas
             const dangDaDangNhap = (api.getState() as RootType).authV2.isAuthenticated;
             api.dispatch(logoutV2());
 
-            if (dangDaDangNhap && !window.location.pathname.startsWith('/v2/dang-nhap')) {
+            // Ghép với BASE_URL (theo VITE_BASE_PATH của từng môi trường, xem
+            // main.tsx/publicAsset.ts) vì đây là window.location trực tiếp,
+            // không đi qua basename của react-router.
+            const duongDanDangNhap = `${import.meta.env.BASE_URL.replace(/\/$/, "")}/v2/dang-nhap`;
+
+            if (dangDaDangNhap && !window.location.pathname.startsWith(duongDanDangNhap)) {
                 api.dispatch(setNotify({
                     typeNotify: 'warning',
                     titleNotify: 'Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại',
                     messageNotify: '',
                 }));
-                window.location.href = '/v2/dang-nhap';
+                window.location.href = duongDanDangNhap;
             }
         }
     }
