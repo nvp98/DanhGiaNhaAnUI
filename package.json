@@ -1,21 +1,21 @@
 {
-  "name": "app-ra-vao-cong",
+  "name": "app-nha-an",
   "private": true,
   "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build:prod": "tsc -b && vite build",
+    "build:dev": "tsc -b && vite build --mode development",
     "cap:sync": "npx cap sync",
     "android:build": "cd android && gradlew.bat assembleDebug",
-    "build-apk": "npm run build && npm run cap:sync && npm run android:build",
+    "build-apk": "npm run build:prod && npm run cap:sync && npm run android:build",
     "android:install": "cd android && gradlew.bat installDebug",
     "android:devices": "adb devices",
     "android:uninstall": "adb uninstall vn.hoaphatdungquat.appnhaan",
     "android:run": "npm run build-apk && npm run android:install",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "builddev": "react-scripts build"
+    "preview": "vite preview"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.1",

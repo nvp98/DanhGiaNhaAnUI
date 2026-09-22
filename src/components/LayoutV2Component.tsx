@@ -8,6 +8,7 @@ import { layNhomMenuHienThi } from "../config/menuV2";
 import { useDangXuatV2Mutation } from "../services/authApiV2";
 import { useLayHoSoQuery } from "../services/profileApiV2";
 import { RootType } from "../store/types";
+import { publicAsset } from "../utils/publicAsset";
 
 const { Header, Content, Sider } = Layout;
 
@@ -183,7 +184,7 @@ const LayoutV2Component: React.FC<LayoutV2Props> = ({ children }) => {
                     >
                         {!collapsed && (
                             <Link to="/v2" className="flex items-center overflow-hidden">
-                                <img className="h-[32px]" src="/assets/images/logo-inverse.png" />
+                                <img className="h-[32px]" src={publicAsset("assets/images/logo-inverse.png")} />
                             </Link>
                         )}
                         <button
@@ -223,7 +224,7 @@ const LayoutV2Component: React.FC<LayoutV2Props> = ({ children }) => {
                 >
                     <div className="flex items-center justify-between border-b border-zinc-200 px-3" style={{ height: CHIEU_CAO_THANH_TREN }}>
                         <Link to="/v2" className="flex items-center overflow-hidden" onClick={() => setMoMenuDiDong(false)}>
-                            <img className="h-[32px]" src="/assets/images/logo-inverse.png" />
+                            <img className="h-[32px]" src={publicAsset("assets/images/logo-inverse.png")} />
                         </Link>
                     </div>
                     {menuModule}

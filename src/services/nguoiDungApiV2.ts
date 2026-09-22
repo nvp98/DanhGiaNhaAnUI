@@ -56,6 +56,10 @@ export const nguoiDungApiV2 = apiSliceV2.injectEndpoints({
             query: ({ id, chuKyId }) => ({ url: `/nguoi-dung/${id}/chu-ky/${chuKyId}/kich-hoat`, method: 'POST' }),
             invalidatesTags: (_result, _error, { id }) => [{ type: 'ChuKy', id: `ND_${id}` }],
         }),
+        xoaChuKyNguoiDung: builder.mutation<{ message: string }, { id: number; chuKyId: number }>({
+            query: ({ id, chuKyId }) => ({ url: `/nguoi-dung/${id}/chu-ky/${chuKyId}`, method: 'DELETE' }),
+            invalidatesTags: (_result, _error, { id }) => [{ type: 'ChuKy', id: `ND_${id}` }],
+        }),
         duyetNguoiDung: builder.mutation<{ message: string }, number>({
             query: (id) => ({ url: `/nguoi-dung/${id}/duyet`, method: 'POST' }),
             invalidatesTags: (_result, _error, id) => [{ type: 'NguoiDung', id }, { type: 'NguoiDung', id: 'LIST' }],
@@ -116,6 +120,7 @@ export const {
     useDanhSachChuKyNguoiDungQuery,
     useUploadChuKyNguoiDungMutation,
     useKichHoatChuKyNguoiDungMutation,
+    useXoaChuKyNguoiDungMutation,
     useLuongKyKhaDungNguoiDungQuery,
     useCapNhatLuongKyNguoiDungMutation,
     useCapNhatPhieuQuyenNguoiDungMutation,

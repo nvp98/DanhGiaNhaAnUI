@@ -13,6 +13,7 @@ import { BsFullscreen, BsFullscreenExit } from "react-icons/bs";
 import { BiLock, BiLockOpen } from "react-icons/bi";
 import { Capacitor } from "@capacitor/core";
 import ImmersiveMode from "../plugins/ImmersiveMode";
+import { publicAsset } from "../utils/publicAsset";
 
 
 
@@ -83,9 +84,9 @@ const HomePage: React.FC = () => {
         {loading ? <div className="flex justify-center w-[100vw] h-[100vh] items-center">
             <Spin/>
             </div>: 
-            <div className="w-[100vw] h-[100vh] bg-no-repeat bg-cover  flex flex-col  " style={{backgroundImage: 'url("/assets/images/bg_nha_an.jpg")', backgroundSize: "100% 100%"}}>
+            <div className="w-[100vw] h-[100vh] bg-no-repeat bg-cover  flex flex-col  " style={{backgroundImage: `url("${publicAsset("assets/images/bg_nha_an.jpg")}")`, backgroundSize: "100% 100%"}}>
             <div className="flex justify-between items-center py-2">
-            <img className="w-[250px] max-lg:w-[150px] max-md:w-[130px]" src="/assets/images/logo.png"></img>
+            <img className="w-[250px] max-lg:w-[150px] max-md:w-[130px]" src={publicAsset("assets/images/logo.png")}></img>
             <div className="flex gap-5 max-lg:gap-2 mr-[20px] items-center">
             <p className="text-white text-base  max-lg:text-sm max-md:text-[10px]">Nhà ăn: {
                 dataNhaAn.find(e => e.id == selectNhaAn)?.diaDiem || ""
@@ -153,7 +154,7 @@ const HomePage: React.FC = () => {
                     </div>
                     <div className="flex justify-center flex-col items-center">
   
-                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src="/assets/images/ratkhonghailong.png"></img>
+                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src={publicAsset("assets/images/ratkhonghailong.png")}></img>
            
                     
                     <p className="text-base max-md:text-[8px] font-bold text-center max-lg:text-[10px]">1 - Rất không hài lòng</p>
@@ -165,7 +166,7 @@ const HomePage: React.FC = () => {
                         <FaCheck className="text-green-500 "/>
                     </div>
                     <div className="flex justify-center flex-col items-center">
-                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src="/assets/images/khonghailong.png"></img>
+                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src={publicAsset("assets/images/khonghailong.png")}></img>
                     <p className="text-base max-md:text-[8px] font-bold text-center max-lg:text-[10px]">2 - Không hài lòng</p>
                     </div>
                     
@@ -175,7 +176,7 @@ const HomePage: React.FC = () => {
                         <FaCheck className="text-green-500 "/>
                     </div>
                     <div className="flex justify-center flex-col items-center">
-                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src="/assets/images/binhthuong.png"></img>
+                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src={publicAsset("assets/images/binhthuong.png")}></img>
                     <p className="text-base max-md:text-[8px] font-bold text-center max-lg:text-[10px]">3 - Bình thường</p>
                     </div>
                     
@@ -185,7 +186,7 @@ const HomePage: React.FC = () => {
                         <FaCheck className="text-green-500 "/>
                     </div>
                     <div className="flex justify-center flex-col items-center">
-                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src="/assets/images/hailong.png"></img>
+                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src={publicAsset("assets/images/hailong.png")}></img>
                     <p className="text-base max-md:text-[8px] font-bold text-center max-lg:text-[10px]">4 - Hài lòng</p>
                     </div>
                     
@@ -195,7 +196,7 @@ const HomePage: React.FC = () => {
                         <FaCheck className="text-green-500 "/>
                     </div>
                     <div className="flex justify-center flex-col items-center">
-                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src="/assets/images/rathailong.png"></img>
+                    <img className="w-[90px] h-[90px] max-lg:w-[50px] max-lg:h-[50px]" src={publicAsset("assets/images/rathailong.png")}></img>
                     <p className="text-base max-md:text-[8px] font-bold text-center max-lg:text-[10px]">5 - Rất hài lòng</p>
                     </div>
                     
