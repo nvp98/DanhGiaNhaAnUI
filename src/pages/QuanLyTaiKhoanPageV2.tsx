@@ -24,6 +24,7 @@ import {
     useTaoNguoiDungMutation,
     useTuChoiNguoiDungMutation,
     useUploadChuKyNguoiDungMutation,
+    useXoaChuKyNguoiDungMutation,
     useXoaVinhVienNguoiDungMutation,
 } from "../services/nguoiDungApiV2";
 import { useDanhSachMauLuongKyQuery } from "../services/mauLuongKyApi";
@@ -416,6 +417,7 @@ const ChiTietTaiKhoanDrawer: React.FC<ChiTietTaiKhoanDrawerProps> = ({ nguoiDung
     const { data: danhSachChuKy = [], isFetching: dangTaiChuKy } = useDanhSachChuKyNguoiDungQuery(id!, { skip: !id });
     const [uploadChuKy, { isLoading: dangUpload }] = useUploadChuKyNguoiDungMutation();
     const [kichHoatChuKy] = useKichHoatChuKyNguoiDungMutation();
+    const [xoaChuKy] = useXoaChuKyNguoiDungMutation();
 
     // Tra tên bước ký từ ID (danhSachMauLuongKyId chỉ là số) — dùng danh sách
     // TẤT CẢ luồng ký (không lọc loaiPhieu) để hiển thị tóm tắt "Phân quyền
@@ -453,6 +455,16 @@ const ChiTietTaiKhoanDrawer: React.FC<ChiTietTaiKhoanDrawerProps> = ({ nguoiDung
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã đặt làm chữ ký hiện hành", messageNotify: "" }));
         } catch (error: any) {
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Đặt chữ ký hiện hành thất bại", messageNotify: "" }));
+        }
+    };
+
+    const xuLyXoaChuKy = async (chuKyId: number) => {
+        if (!id) return;
+        try {
+            await xoaChuKy({ id, chuKyId }).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã xóa chữ ký", messageNotify: "" }));
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Xóa chữ ký thất bại", messageNotify: "" }));
         }
     };
 
@@ -534,7 +546,18 @@ const ChiTietTaiKhoanDrawer: React.FC<ChiTietTaiKhoanDrawerProps> = ({ nguoiDung
                                         size="small"
                                         cover={<img src={`${ApiRootV2}${ck.duongDanChuKy}`} className="h-[100px] object-contain p-2 bg-white" />}
                                         actions={ck.dangSuDung ? undefined : [
-                                            <Button key="kich-hoat" size="small" type="link" onClick={() => xuLyKichHoat(ck.id)}>Đặt làm hiện hành</Button>
+                                            <Button key="kich-hoat" size="small" type="link" onClick={() => xuLyKichHoat(ck.id)}>Đặt làm hiện hành</Button>,
+                                            <Popconfirm
+                                                key="xoa"
+                                                title="Xóa chữ ký"
+                                                description="Xóa chữ ký này? Không thể hoàn tác."
+                                                okText="Xóa"
+                                                okButtonProps={{ danger: true }}
+                                                cancelText="Hủy"
+                                                onConfirm={() => xuLyXoaChuKy(ck.id)}
+                                            >
+                                                <Button size="small" type="link" danger icon={<FaTrash />} />
+                                            </Popconfirm>,
                                         ]}
                                     >
                                         {ck.dangSuDung && <Tag color="success">Đang sử dụng</Tag>}

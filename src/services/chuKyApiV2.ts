@@ -22,6 +22,10 @@ export const chuKyApiV2 = apiSliceV2.injectEndpoints({
             query: (id) => ({ url: `/chu-ky/${id}/kich-hoat`, method: 'POST' }),
             invalidatesTags: [{ type: 'ChuKy', id: 'LIST' }],
         }),
+        xoaChuKy: builder.mutation<{ message: string }, number>({
+            query: (id) => ({ url: `/chu-ky/${id}`, method: 'DELETE' }),
+            invalidatesTags: [{ type: 'ChuKy', id: 'LIST' }],
+        }),
     }),
 });
 
@@ -29,4 +33,5 @@ export const {
     useDanhSachChuKyQuery,
     useUploadChuKyMutation,
     useKichHoatChuKyMutation,
+    useXoaChuKyMutation,
 } = chuKyApiV2;

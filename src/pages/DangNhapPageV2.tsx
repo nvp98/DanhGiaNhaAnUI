@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import { useDangNhapV2Mutation } from "../services/authApiV2";
 import { setNotify } from "../store/notifycationSlide";
+import { publicAsset } from "../utils/publicAsset";
 
 const DangNhapPageV2: React.FC = () => {
     const dispatch = useDispatch();
@@ -34,7 +35,7 @@ const DangNhapPageV2: React.FC = () => {
                 <FaArrowLeft /> Quay lại
             </button>
             <div className="flex flex-1 flex-col justify-center items-center w-full">
-                <img src="/assets/images/logo-inverse.png" className="h-[80px] w-[225px] md:w-[350px] md:h-[100px] landscape:h-[50px] landscape:w-[140px] landscape:md:h-[60px] landscape:md:w-[170px]" />
+                <img src={publicAsset("assets/images/logo-inverse.png")} className="h-[80px] w-[225px] md:w-[350px] md:h-[100px] landscape:h-[50px] landscape:w-[140px] landscape:md:h-[60px] landscape:md:w-[170px]" />
                 <h2 className="mt-5 text-xl px-24 text-center uppercase font-bold md:text-3xl text-[#004aad] landscape:mt-2 landscape:text-base landscape:px-4" style={{ lineHeight: "40px" }}>
                     Đánh giá nhà ăn
                 </h2>
@@ -77,7 +78,7 @@ const DangNhapPageV2: React.FC = () => {
             </div>
         </div>
         <div className="flex-[3] hidden md:block" style={{
-            backgroundImage: "url('/assets/images/background-login.jpg')",
+            backgroundImage: `url('${publicAsset("assets/images/background-login.jpg")}')`,
             backgroundRepeat: "no-repeat",
             backgroundSize: "cover"
         }}>

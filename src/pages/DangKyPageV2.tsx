@@ -6,6 +6,7 @@ import { useDangKyV2Mutation } from "../services/authApiV2";
 import { useDanhSachNhaThauQuery } from "../services/nhaThauApiV2";
 import { useDanhSachPhongBanQuery } from "../services/phongBanApiV2";
 import { setNotify } from "../store/notifycationSlide";
+import { publicAsset } from "../utils/publicAsset";
 
 const DangKyPageV2: React.FC = () => {
     const dispatch = useDispatch();
@@ -45,7 +46,7 @@ const DangKyPageV2: React.FC = () => {
 
     return <div className="flex justify-center min-h-[100vh] py-10">
         <div className="w-[90%] md:w-[500px] pt-3 px-7 pb-9 border-2 border-[#004aad] flex flex-col justify-center items-center h-fit">
-            <img src="/assets/images/logo-inverse.png" className="h-[60px] mt-3" />
+            <img src={publicAsset("assets/images/logo-inverse.png")} className="h-[60px] mt-3" />
             <h4 className="text-[#004aad] font-bold text-2xl mt-3">
                 ĐĂNG KÝ TÀI KHOẢN
             </h4>

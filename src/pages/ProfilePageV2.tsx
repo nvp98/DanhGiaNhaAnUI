@@ -1,10 +1,11 @@
-import { Button, Card, Form, Input, Tag, Upload } from "antd";
+import { Button, Card, Form, Input, Popconfirm, Tag, Upload } from "antd";
 import type { RcFile } from "antd/es/upload";
 import React, { useEffect } from "react";
+import { FaTrash } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import LayoutV2Component from "../components/LayoutV2Component";
-import { useDanhSachChuKyQuery, useKichHoatChuKyMutation, useUploadChuKyMutation } from "../services/chuKyApiV2";
+import { useDanhSachChuKyQuery, useKichHoatChuKyMutation, useUploadChuKyMutation, useXoaChuKyMutation } from "../services/chuKyApiV2";
 import { ApiRootV2 } from "../services/LinkServerV2";
 import { useDanhSachNhaThauQuery } from "../services/nhaThauApiV2";
 import { useDanhSachPhongBanQuery } from "../services/phongBanApiV2";
@@ -26,6 +27,7 @@ const ProfilePageV2: React.FC = () => {
     const { data: danhSachChuKy = [], isFetching } = useDanhSachChuKyQuery();
     const [uploadChuKy, { isLoading: dangUpload }] = useUploadChuKyMutation();
     const [kichHoatChuKy] = useKichHoatChuKyMutation();
+    const [xoaChuKy] = useXoaChuKyMutation();
 
     const [capNhatProfile, { isLoading: dangLuuThongTin }] = useCapNhatProfileMutation();
     const [doiMatKhau, { isLoading: dangDoiMatKhau }] = useDoiMatKhauMutation();
@@ -111,6 +113,15 @@ const ProfilePageV2: React.FC = () => {
         }
     };
 
+    const xuLyXoa = async (id: number) => {
+        try {
+            await xoaChuKy(id).unwrap();
+            dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã xóa chữ ký", messageNotify: "" }));
+        } catch (error: any) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Xóa chữ ký thất bại", messageNotify: "" }));
+        }
+    };
+
     return <LayoutV2Component>
         <h2 className="font-bold text-xl text-zinc-700 mb-6">TRANG CÁ NHÂN</h2>
 
@@ -189,7 +200,18 @@ const ProfilePageV2: React.FC = () => {
                                 key={ck.id}
                                 cover={<img src={`${ApiRootV2}${ck.duongDanChuKy}`} className="h-[120px] object-contain p-3 bg-white" />}
                                 actions={ck.dangSuDung ? undefined : [
-                                    <Button key="kich-hoat" type="link" onClick={() => xuLyKichHoat(ck.id)}>Đặt làm hiện hành</Button>
+                                    <Button key="kich-hoat" type="link" onClick={() => xuLyKichHoat(ck.id)}>Đặt làm hiện hành</Button>,
+                                    <Popconfirm
+                                        key="xoa"
+                                        title="Xóa chữ ký"
+                                        description="Xóa chữ ký này? Không thể hoàn tác."
+                                        okText="Xóa"
+                                        okButtonProps={{ danger: true }}
+                                        cancelText="Hủy"
+                                        onConfirm={() => xuLyXoa(ck.id)}
+                                    >
+                                        <Button type="link" danger icon={<FaTrash />} />
+                                    </Popconfirm>,
                                 ]}
                             >
                                 {ck.dangSuDung && <Tag color="success">Đang sử dụng</Tag>}
