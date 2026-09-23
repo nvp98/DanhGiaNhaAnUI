@@ -15,5 +15,7 @@ public class MainActivity extends BridgeActivity {
         SplashScreen.installSplashScreen(this);
         registerPlugin(ImmersiveModePlugin.class);
         super.onCreate(savedInstanceState);
+        // Tin thêm root Sectigo R46 cho API — xem SslTrustWebViewClient.
+        bridge.setWebViewClient(new SslTrustWebViewClient(bridge, this));
     }
 }

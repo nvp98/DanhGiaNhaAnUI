@@ -9,6 +9,7 @@ import { mauTrangThaiPhieu, tenTrangThaiPhieu, DS_TRANG_THAI_PHIEU, PhieuFilterB
 import NhaThauModel from "../../models/NhaThauModel";
 import Phieu4Model from "../../models/Phieu4Model";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
+import { locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
 import { useDanhSachPhieu4Query, useThemPhieu4Mutation, useXoaPhieu4Mutation } from "../../services/phieu4Api";
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
@@ -263,8 +264,8 @@ const Phieu4DanhSachPage: React.FC = () => {
                         value={moNhaThauIds}
                         onChange={v => setMoNhaThauIds(v)}
                     >
-                        {danhSachNhaThau.map((nt: NhaThauModel) => (
-                            <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                        {locDanhMucChon(danhSachNhaThau, moNhaThauIds).map((nt: NhaThauModel) => (
+                            <Select.Option key={nt.id} value={nt.id}>{tenOptionDanhMuc(nt)}</Select.Option>
                         ))}
                     </Select>
                 </div>

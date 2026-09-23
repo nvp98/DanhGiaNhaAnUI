@@ -24,6 +24,7 @@ import { useDanhSachBepAnQuery } from "../../services/bepAnApiV2";
 import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachDiaDiemNhaAnQuery } from "../../services/diaDiemNhaAnApiV2";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
+import { locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
 import { useChiTietPhieu1Query } from "../../services/phieu1Api";
 import {
     Phieu2TieuChiRequest,
@@ -163,7 +164,13 @@ const Phieu2FormPage: React.FC = () => {
     // điểm bữa ăn cũ), cho chọn tự do, không ràng buộc lọc theo Bếp ăn đã
     // chọn (đã xác nhận nghiệp vụ 2026-08-27, xem Phieu2_DanhGiaSuatAn.md).
     const { data: danhSachDiaDiemNhaAnGoc = [] } = useDanhSachDiaDiemNhaAnQuery();
-    const danhSachNhaAn = danhSachDiaDiemNhaAnGoc.filter(n => n.isActive);
+    // Nhà ăn ngừng hoạt động vẫn giữ lại nếu phiếu đã chọn trước đó (giữ lịch sử).
+    const nhaAnIdsDaLuu = chiTietPhieu?.danhSachNhaAn.map(n => n.id) ?? [];
+    const danhSachNhaAn = danhSachDiaDiemNhaAnGoc.filter(n => n.isActive || nhaAnIdsDaLuu.includes(n.id));
+
+    // Option chọn: chỉ bản ghi còn hoạt động + giá trị đã lưu trên phiếu (giữ lịch sử).
+    const optionNhaThau = locDanhMucChon(danhSachNhaThau, [chiTietPhieu?.phieu.nhaThauId, nhaThauId]);
+    const optionBepAn = locDanhMucChon(danhSachBepAn, [chiTietPhieu?.phieu.bepAnId, bepAnId]);
 
     // Danh sách Phiếu 1 khả dụng để chọn liên kết (theo nhà thầu + bếp ăn đã
     // chọn, backend đã lọc sẵn đúng phòng ban của người đang lập + chỉ Phiếu
@@ -679,9 +686,9 @@ const Phieu2FormPage: React.FC = () => {
                                     setPhieu1Id(undefined);
                                 }}
                             >
-                                {danhSachNhaThau.map((nt: NhaThauModel) => (
+                                {optionNhaThau.map((nt: NhaThauModel) => (
                                     <Select.Option key={nt.id} value={nt.id}>
-                                        {nt.ten}
+                                        {tenOptionDanhMuc(nt)}
                                     </Select.Option>
                                 ))}
                             </Select>
@@ -703,9 +710,9 @@ const Phieu2FormPage: React.FC = () => {
                                     setPhieu1Id(undefined);
                                 }}
                             >
-                                {danhSachBepAn.map((b: BepAnModel) => (
+                                {optionBepAn.map((b: BepAnModel) => (
                                     <Select.Option key={b.id} value={b.id}>
-                                        {b.ten}
+                                        {tenOptionDanhMuc(b)}
                                     </Select.Option>
                                 ))}
                             </Select>

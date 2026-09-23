@@ -13,6 +13,7 @@ import { useDanhSachPhongBanQuery } from "../services/phongBanApiV2";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { locDanhMucChon, tenOptionDanhMuc } from "../utils/danhMucHoatDong";
 
 const DS_LOAI_NGUOI_KY = [
     { value: "PHONG_BAN", label: "Phòng ban" },
@@ -234,8 +235,8 @@ const MauLuongKyPage: React.FC = () => {
                 {loaiNguoiKyDangChon === "PHONG_BAN" && (
                     <Form.Item label="Phòng ban" name="phongBanId" rules={[{ required: true, message: "Vui lòng chọn phòng ban!" }]}>
                         <Select placeholder="-- Chọn phòng ban --" showSearch optionFilterProp="children">
-                            {danhSachPhongBan.map(pb => (
-                                <Select.Option key={pb.id} value={pb.id}>{pb.ten}</Select.Option>
+                            {locDanhMucChon(danhSachPhongBan, dangSua?.phongBanId).map(pb => (
+                                <Select.Option key={pb.id} value={pb.id}>{tenOptionDanhMuc(pb)}</Select.Option>
                             ))}
                         </Select>
                     </Form.Item>

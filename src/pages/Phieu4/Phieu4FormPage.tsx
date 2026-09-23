@@ -23,6 +23,7 @@ import { Phieu4DongModel } from "../../models/Phieu4ResponseModel";
 
 import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
+import { laHoatDong, locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
 import {
     useCapNhatGiaTriPhieu4Mutation,
     useChiTietPhieu4Query,
@@ -450,8 +451,8 @@ const Phieu4FormPage: React.FC = () => {
                                     value={nhaThauIds}
                                     onChange={v => setNhaThauIds(v)}
                                 >
-                                    {danhSachNhaThau.map((nt: NhaThauModel) => (
-                                        <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                                    {locDanhMucChon(danhSachNhaThau, nhaThauIds).map((nt: NhaThauModel) => (
+                                        <Select.Option key={nt.id} value={nt.id}>{tenOptionDanhMuc(nt)}</Select.Option>
                                     ))}
                                 </Select>
                             </div>
@@ -533,8 +534,10 @@ const Phieu4FormPage: React.FC = () => {
                                             value={nhaThauMoiId}
                                             onChange={v => setNhaThauMoiId(v)}
                                         >
+                                            {/* Thêm cột mới: chỉ nhà thầu còn hoạt động; cột đã có
+                                                (kể cả nhà thầu đã ngừng) vẫn hiện ở Tag phía trên. */}
                                             {danhSachNhaThau
-                                                .filter((nt: NhaThauModel) => !cotNhaThau.some(c => c.nhaThauId === nt.id))
+                                                .filter((nt: NhaThauModel) => laHoatDong(nt) && !cotNhaThau.some(c => c.nhaThauId === nt.id))
                                                 .map((nt: NhaThauModel) => (
                                                     <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
                                                 ))}

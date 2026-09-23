@@ -14,6 +14,7 @@ import { useDanhSachTieuChiQuery, useSuaTieuChiMutation, useThemTieuChiMutation,
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { locDanhMucChon, tenOptionDanhMuc } from "../utils/danhMucHoatDong";
 
 const TieuChiPage: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
@@ -242,8 +243,8 @@ const TieuChiPage: React.FC = () => {
             <Form form={form} layout="vertical" onFinish={luuTieuChi}>
                 <Form.Item label="Nhóm tiêu chí" name="nhomId" rules={[{ required: true, message: "Vui lòng chọn nhóm tiêu chí!" }]}>
                     <Select placeholder="-- Chọn nhóm tiêu chí --">
-                        {danhSachNhom.map(n => (
-                            <Select.Option key={n.id} value={n.id}>{n.ten}</Select.Option>
+                        {locDanhMucChon(danhSachNhom, dangSua?.nhomId).map(n => (
+                            <Select.Option key={n.id} value={n.id}>{tenOptionDanhMuc(n)}</Select.Option>
                         ))}
                     </Select>
                 </Form.Item>

@@ -8,6 +8,7 @@ import LayoutV2Component from "../../components/LayoutV2Component";
 import { mauTrangThaiPhieu, tenTrangThaiPhieu, DS_TRANG_THAI_PHIEU, PhieuFilterBar, PhieuListHeader } from "../../components/phieu";
 import Phieu3Model from "../../models/Phieu3Model";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
+import { locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
 import { useDanhSachPhieu3Query, useThemPhieu3Mutation, useXoaPhieu3Mutation } from "../../services/phieu3Api";
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
@@ -301,8 +302,8 @@ const Phieu3DanhSachPage: React.FC = () => {
                         value={moNhaThauId}
                         onChange={v => setMoNhaThauId(v)}
                     >
-                        {danhSachNhaThau.map(nt => (
-                            <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                        {locDanhMucChon(danhSachNhaThau, moNhaThauId).map(nt => (
+                            <Select.Option key={nt.id} value={nt.id}>{tenOptionDanhMuc(nt)}</Select.Option>
                         ))}
                     </Select>
                 </div>
