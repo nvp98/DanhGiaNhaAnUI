@@ -267,7 +267,6 @@ export const PhieuSignatures: React.FC<PhieuSignaturesProps> = ({
                       <div key={mau.id} className="chu-ky-block">
                           <div className="chu-ky-title">{mau.tenBuoc}</div>
                           <div className="chu-ky-space">
-                              <span>(Ký, ghi rõ họ tên)</span>
                           </div>
                       </div>
                   ))
