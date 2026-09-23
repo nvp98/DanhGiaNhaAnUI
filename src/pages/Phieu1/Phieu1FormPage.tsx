@@ -32,6 +32,7 @@ import TieuChiModel from "../../models/TieuChiModel";
 import { useDanhSachBepAnQuery } from "../../services/bepAnApiV2";
 import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
+import { laHoatDong, locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
 import { useDanhSachNhomTieuChiQuery } from "../../services/nhomTieuChiApi";
 import {
     Phieu1ChiTietRequest,
@@ -127,6 +128,10 @@ const Phieu1FormPage: React.FC = () => {
         loaiPhieu: "PHIEU1",
         dangHoatDong: true,
     });
+    // Không lọc dangHoatDong — dùng để HIỂN THỊ các dòng đã lưu theo nhóm (xem
+    // nhomVaDong): nhóm bị ngừng hoạt động sau này thì dòng của phiếu cũ vẫn
+    // phải hiện đúng dưới nhóm đó, không được biến mất.
+    const { data: danhSachNhomTraTen = [] } = useDanhSachNhomTieuChiQuery({ loaiPhieu: "PHIEU1" });
     const { data: danhSachTieuChiTatCa = [], isFetching: dangTaiTieuChiTatCa } = useDanhSachTieuChiQuery({
         dangHoatDong: true,
     });
@@ -312,20 +317,31 @@ const Phieu1FormPage: React.FC = () => {
     const tenPhongBan = (id?: number) =>
         danhSachPhongBan.find((pb: PhongBanModel) => pb.id === id)?.ten ?? "";
 
-    const nhaThauCuaBepAn = (bepId?: number) =>
-        danhSachBepAn.find((b: BepAnModel) => b.id === bepId)?.nhaThauId;
+    // Chỉ gợi ý nhà thầu còn hoạt động — nhà thầu đã ngừng không được chọn mới.
+    const nhaThauCuaBepAn = (bepId?: number) => {
+        const idNt = danhSachBepAn.find((b: BepAnModel) => b.id === bepId)?.nhaThauId;
+        return danhSachNhaThau.some((nt: NhaThauModel) => nt.id === idNt && laHoatDong(nt)) ? idNt : undefined;
+    };
 
-    const nhomVaDong = danhSachNhom
+    // Option chọn: chỉ bản ghi còn hoạt động + giá trị đã lưu trên phiếu (giữ lịch sử).
+    const optionBepAn = locDanhMucChon(danhSachBepAn, [chiTietPhieu?.phieu.bepAnId, bepAnId]);
+    const optionNhaThau = locDanhMucChon(danhSachNhaThau, [chiTietPhieu?.phieu.nhaThauId, nhaThauId]);
+
+    // Dùng danh sách nhóm ĐẦY ĐỦ — nhóm không có dòng nào sẽ bị lọc bỏ bên
+    // dưới, nên phiếu mới chỉ hiện nhóm đang hoạt động (checklist dựng từ
+    // danhSachNhom), còn phiếu cũ vẫn giữ nhóm đã ngừng.
+    const nhomVaDong = danhSachNhomTraTen
         .slice()
         .sort((a: NhomTieuChiModel, b: NhomTieuChiModel) => a.thuTu - b.thuTu)
-        .map((nhom: NhomTieuChiModel, nhomIndex: number) => ({
+        .map((nhom: NhomTieuChiModel) => ({
             nhom,
-            soNhom: nhomIndex + 1,
             dong: danhSachDong
                 .filter(d => d.nhomId === nhom.id)
                 .sort((a, b) => a.thuTu - b.thuTu),
         }))
-        .filter(x => x.dong.length > 0);
+        .filter(x => x.dong.length > 0)
+        // Đánh số SAU khi lọc để số nhóm liên tục (không nhảy số vì nhóm rỗng)
+        .map((x, nhomIndex) => ({ ...x, soNhom: nhomIndex + 1 }));
 
     const dongKhongNhom = danhSachDong
         .filter(d => !d.nhomId)
@@ -709,9 +725,9 @@ const Phieu1FormPage: React.FC = () => {
                                     if (!nhaThauId) setNhaThauId(nhaThauCuaBepAn(v));
                                 }}
                             >
-                                {danhSachBepAn.map((b: BepAnModel) => (
+                                {optionBepAn.map((b: BepAnModel) => (
                                     <Select.Option key={b.id} value={b.id}>
-                                        {b.ten}
+                                        {tenOptionDanhMuc(b)}
                                     </Select.Option>
                                 ))}
                             </Select>
@@ -729,9 +745,9 @@ const Phieu1FormPage: React.FC = () => {
                                 value={nhaThauId}
                                 onChange={v => setNhaThauId(v)}
                             >
-                                {danhSachNhaThau.map((nt: NhaThauModel) => (
+                                {optionNhaThau.map((nt: NhaThauModel) => (
                                     <Select.Option key={nt.id} value={nt.id}>
-                                        {nt.ten}
+                                        {tenOptionDanhMuc(nt)}
                                     </Select.Option>
                                 ))}
                             </Select>

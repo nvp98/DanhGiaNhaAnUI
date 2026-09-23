@@ -24,6 +24,7 @@ import { Phieu3Bang1DongModel, Phieu3Bang2DongModel } from "../../models/Phieu3R
 
 import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
+import { locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
 import { useDanhSachPhieu1Query } from "../../services/phieu1Api";
 import { useDanhSachPhieu2Query } from "../../services/phieu2Api";
 import {
@@ -262,6 +263,8 @@ const Phieu3FormPage: React.FC = () => {
 
     const tenNhaThau = (idNt?: number) =>
         idNt ? danhSachNhaThau.find((nt: NhaThauModel) => nt.id === idNt)?.ten ?? "" : "";
+    // Option chọn: chỉ nhà thầu còn hoạt động + giá trị đã lưu trên phiếu (giữ lịch sử).
+    const optionNhaThau = locDanhMucChon(danhSachNhaThau, [chiTietPhieu?.phieu.nhaThauId, nhaThauId]);
     const tenPhongBan = (idPb: number) =>
         danhSachPhongBan.find((pb: PhongBanModel) => pb.id === idPb)?.ten ?? `Phòng ban #${idPb}`;
     // "1. Căn cứ đánh giá": tự tổng hợp từ các Phiếu 2 (Bảng đánh giá) và Phiếu 1
@@ -569,8 +572,8 @@ const Phieu3FormPage: React.FC = () => {
                             value={nhaThauId}
                             onChange={v => setNhaThauId(v)}
                         >
-                            {danhSachNhaThau.map((nt: NhaThauModel) => (
-                                <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                            {optionNhaThau.map((nt: NhaThauModel) => (
+                                <Select.Option key={nt.id} value={nt.id}>{tenOptionDanhMuc(nt)}</Select.Option>
                             ))}
                         </Select>
                     </div>

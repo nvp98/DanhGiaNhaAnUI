@@ -13,6 +13,7 @@ import BepAnModel from "../models/BepAnModel";
 import { setNotify } from "../store/notifycationSlide";
 import { RootType } from "../store/types";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { locDanhMucChon, tenOptionDanhMuc } from "../utils/danhMucHoatDong";
 
 const DS_TRANG_THAI = [
     { value: "HOAT_DONG", label: "Hoạt động", color: "success" },
@@ -241,8 +242,8 @@ const BepAnPageV2: React.FC = () => {
                 </Form.Item>
                 <Form.Item label="Nhà thầu vận hành" name="nhaThauId">
                     <Select allowClear placeholder="-- Chọn nhà thầu --" showSearch optionFilterProp="children">
-                        {danhSachNhaThau.map(nt => (
-                            <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
+                        {locDanhMucChon(danhSachNhaThau, dangSua?.nhaThauId).map(nt => (
+                            <Select.Option key={nt.id} value={nt.id}>{tenOptionDanhMuc(nt)}</Select.Option>
                         ))}
                     </Select>
                 </Form.Item>

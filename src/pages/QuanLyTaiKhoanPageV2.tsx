@@ -29,6 +29,7 @@ import {
 } from "../services/nguoiDungApiV2";
 import { useDanhSachMauLuongKyQuery } from "../services/mauLuongKyApi";
 import { useDanhSachNhaThauQuery } from "../services/nhaThauApiV2";
+import { locDanhMucChon } from "../utils/danhMucHoatDong";
 import { useDanhSachPhongBanQuery } from "../services/phongBanApiV2";
 import { useDanhSachVaiTroQuery } from "../services/vaiTroApiV2";
 import { setNotify } from "../store/notifycationSlide";
@@ -362,7 +363,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
 
                 <Form.Item label="Phòng ban" name="phongBanId">
                     <Select allowClear placeholder="-- Chọn phòng ban --" showSearch optionFilterProp="children">
-                        {danhSachPhongBan.map(pb => (
+                        {locDanhMucChon(danhSachPhongBan).map(pb => (
                             <Select.Option key={pb.id} value={pb.id}>{pb.ten}</Select.Option>
                         ))}
                     </Select>
@@ -370,7 +371,7 @@ const QuanLyTaiKhoanPageV2: React.FC = () => {
 
                 <Form.Item label="Nhà thầu (nếu là tài khoản nhà thầu)" name="nhaThauId">
                     <Select allowClear placeholder="-- Chọn nhà thầu --" showSearch optionFilterProp="children">
-                        {danhSachNhaThau.map(nt => (
+                        {locDanhMucChon(danhSachNhaThau).map(nt => (
                             <Select.Option key={nt.id} value={nt.id}>{nt.ten}</Select.Option>
                         ))}
                     </Select>

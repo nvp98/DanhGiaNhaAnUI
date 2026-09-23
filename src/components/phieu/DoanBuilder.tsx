@@ -67,7 +67,10 @@ const dongHopLe = (d: DongNhap): boolean =>
 // gọi onThem/API ngay khi điền xong 1 đoạn).
 export const DoanBuilder: React.FC<DoanBuilderProps> = ({ items, coTheSua, dangThem, onThem, onXoa, ngayToiThieu, ngayToiDa }) => {
     const { data: danhSachBuaAn = [] } = useDanhSachBuaAnQuery();
-    const { data: danhSachDiaDiem = [] } = useDanhSachDiaDiemNhaAnQuery({ isActive: true });
+    // Lấy ĐẦY ĐỦ để tra tên cho đoạn đã lưu (kể cả địa điểm đã ngừng hoạt
+    // động sau này — giữ lịch sử); dropdown chọn mới chỉ lấy địa điểm đang hoạt động.
+    const { data: danhSachDiaDiem = [] } = useDanhSachDiaDiemNhaAnQuery();
+    const diaDiemChon = danhSachDiaDiem.filter((dd) => dd.isActive);
 
     const [dsDong, setDsDong] = useState<DongNhap[]>([dongRong()]);
     const [dangLuu, setDangLuu] = useState(false);
@@ -233,7 +236,7 @@ export const DoanBuilder: React.FC<DoanBuilderProps> = ({ items, coTheSua, dangT
                                     value={d.diaDiemIds}
                                     onChange={(v) => capNhatDong(d.key, { diaDiemIds: v })}
                                 >
-                                    {danhSachDiaDiem.map((dd) => (
+                                    {diaDiemChon.map((dd) => (
                                         <Select.Option key={dd.id} value={dd.id}>{dd.diaDiem}</Select.Option>
                                     ))}
                                 </Select>
