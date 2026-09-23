@@ -45,11 +45,11 @@ import "./Phieu2FormPage.scss";
 
 // 5 tiêu chí cố định — phải khớp với TieuChiCoDinh ở backend (Phieu2Service.cs)
 const TIEU_CHI_CO_DINH: { ma: string; ten: string; thuTu: number }[] = [
-    { ma: "VSATTP", ten: "Tuân thủ điều kiện vệ sinh an toàn thực phẩm", thuTu: 0 },
-    { ma: "DINH_LUONG_THUC_DON", ten: "Thực đơn và định lượng suất ăn", thuTu: 1 },
-    { ma: "THAI_DO_PHOI_HOP", ten: "Thái độ phục vụ và phối hợp", thuTu: 2 },
-    { ma: "PHAN_HOI_SU_CO", ten: "Xử lý phản hồi và sự cố", thuTu: 3 },
-    { ma: "DIEU_KHOAN_KHAC", ten: "Các điều khoản thỏa thuận khác", thuTu: 4 },
+    { ma: "VSATTP", ten: "Tuân thủ quy định về vệ sinh an toàn thực phẩm ", thuTu: 0 },
+    { ma: "DINH_LUONG_THUC_DON", ten: "Tuân thủ định lượng theo thực đơn đã được phê duyệt", thuTu: 1 },
+    { ma: "THAI_DO_PHOI_HOP", ten: "Thái độ phối hợp, cầu thị cải tiến ", thuTu: 2 },
+    { ma: "PHAN_HOI_SU_CO", ten: "Phản hồi sự cố, xử lý khiếu nại (nếu có)", thuTu: 3 },
+    { ma: "DIEU_KHOAN_KHAC", ten: "Tuân thủ các điều khoản khác của hợp đồng, bản cam kết, quy trình báo cáo (ngoài tiêu chí thuộc bảng đánh giá này)", thuTu: 4 },
 ];
 
 interface DongTieuChi extends Phieu2TieuChiRequest { }

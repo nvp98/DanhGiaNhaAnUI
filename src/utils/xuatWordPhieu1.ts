@@ -474,7 +474,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                 ),
             }),
             new TableRow({
-                children: (chuKy.length > 0 ? chuKy : [{ tenBuoc: "(Ký, ghi rõ họ tên)", trangThai: "CHO_KY" } as XuatWordPhieu1ChuKy]).map((buoc, i) =>
+                children: (chuKy.length > 0 ? chuKy : [{ tenBuoc: "", trangThai: "CHO_KY" } as XuatWordPhieu1ChuKy]).map((buoc, i) =>
                     new TableCell({
                         width: { size: rongCot, type: WidthType.PERCENTAGE },
                         children: [
