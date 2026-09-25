@@ -79,10 +79,21 @@
             cursor: default;
         }
     }
-}
 
-.ket-qua-tong-hop {
-    font-size: 15px;
+    // Dòng "Kết quả" tổng hợp cuối bảng (xem Phieu2FormPage.tsx).
+    .dong-ket-qua td {
+        vertical-align: middle;
+    }
+
+    .o-ket-qua-nhan {
+        font-weight: 700;
+        text-align: center;
+    }
+
+    .o-ket-qua-tong-hop {
+        text-align: left;
+        padding: 6px 10px !important;
+    }
 }
 
 .phieu-y-kien {
@@ -131,6 +142,7 @@
 .phieu-ghi-chu-footer {
     margin-top: 20px;
     font-size: $fs-note;
+    font-style: italic;
     line-height: 1.45;
 
     .ghi-chu-footer-title {

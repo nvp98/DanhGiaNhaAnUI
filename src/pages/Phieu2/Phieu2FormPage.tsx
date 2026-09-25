@@ -398,7 +398,7 @@ const Phieu2FormPage: React.FC = () => {
             nhaThauId,
             bepAnId,
             nhaAnIds,
-            thoiGianTu: thoiGianTu?.toISOString(),
+            thoiGianTu: thoiGianTu?.format("YYYY-MM-DD"),
             diaDiem: viTriKiemTra,
             thoiGianKiemTraText,
             phieu1Id,
@@ -908,18 +908,20 @@ const Phieu2FormPage: React.FC = () => {
                                 );
                             })}
                         </tr>
+                        {/* Kết quả tổng hợp — dòng cuối của bảng: "Kết quả" ở cột
+                            Thời gian, bỏ trống cột Vị trí, gộp toàn bộ cột tiêu
+                            chí (Đạt/K-Đạt) thành 1 ô. Khớp xuatWordPhieu2.ts. */}
+                        <tr className="dong-ket-qua">
+                            <td className="o-ket-qua-nhan">Kết quả</td>
+                            <td />
+                            <td colSpan={Math.max(danhSachTieuChi.length * 2, 1)} className="o-ket-qua-tong-hop">
+                                Đạt: <strong>{soTieuChiDat}/{soTieuChiDaDanhGia}</strong>
+                                &nbsp;&nbsp;&nbsp;&nbsp;
+                                Không đạt: <strong>{soTieuChiKhongDat}/{soTieuChiDaDanhGia}</strong>
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
-
-                {/* Kết quả tổng hợp */}
-                <div className="phieu-ket-luan">
-                    <div className="phieu-ket-luan-title">Kết quả</div>
-                    <div className="ket-qua-tong-hop">
-                        Đạt: <strong>{soTieuChiDat}/{soTieuChiDaDanhGia}</strong>
-                        &nbsp;&nbsp;&nbsp;&nbsp;
-                        Không đạt: <strong>{soTieuChiKhongDat}/{soTieuChiDaDanhGia}</strong>
-                    </div>
-                </div>
 
                 {/* Ý kiến nhà thầu — hiển thị dạng preview (giống ô Ghi chú của
                     cột "Không đạt": renderOGhiChu), bấm icon để mở modal TinyMCE
