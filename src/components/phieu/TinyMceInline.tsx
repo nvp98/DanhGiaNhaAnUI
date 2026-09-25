@@ -4,6 +4,7 @@ import { Editor } from "@tinymce/tinymce-react";
 import { FaSave } from "react-icons/fa";
 import LinkServerV2, { ApiRootV2 } from "../../services/LinkServerV2";
 import { dinhDangDungLuong, nenAnhTruocKhiUpload } from "./nenAnhUpload";
+import { dangKyNutChenAnh } from "./nutChenAnh";
 
 export interface TinyMceInlineProps {
     value: string;
@@ -150,7 +151,8 @@ export const TinyMceInline: React.FC<TinyMceInlineProps> = ({
                     ],
                     toolbar:
                         "undo redo | blocks | bold italic underline | " +
-                        "bullist numlist | image link table | removeformat | code",
+                        "bullist numlist | chenanh link table | removeformat | code",
+                    setup: dangKyNutChenAnh,
                     content_style:
                         "body { font-family: 'Times New Roman', Times, serif; font-size: 14px; line-height: 1.4; } img { max-width: 100%; height: auto; border-radius: 4px; margin: 4px 0; }",
                     images_upload_handler: imagesUploadHandler,

@@ -26,7 +26,7 @@ import { ApiRootV2 } from "../services/LinkServerV2";
 // đổi backend. Ghi chú từng dòng/Kết luận là HTML do TinyMCE sinh ra — dịch
 // sang Paragraph/TextRun giữ định dạng cơ bản (đậm/nghiêng/gạch chân/danh
 // sách); ảnh <img> trong ghi chú KHÔNG dịch tại chỗ mà được gom lại và chèn
-// dưới dạng ImageRun, mỗi ảnh 1 dòng, xuống cuối văn bản (xem
+// dưới dạng ImageRun, tối đa 2 ảnh/hàng, xuống cuối văn bản (xem
 // khoiAnhMinhChung bên dưới) — khác với xuatWordPhieu3.ts/4.ts vẫn bỏ qua
 // hẳn ảnh trong ghi chú. Chữ ký đã duyệt cũng nhúng ảnh chữ ký thật
 // (duongDanChuKy) nếu có, xem layAnhChuKy.
@@ -303,16 +303,78 @@ const layAnhChuKy = (duongDanChuKy?: string): Promise<AnhDaTai | null> =>
     !duongDanChuKy ? Promise.resolve(null) : taiAnhTheoUrl(`${ApiRootV2}${duongDanChuKy}`, ANH_KY_CAO_TOI_DA, ANH_KY_RONG_TOI_DA);
 
 // Ảnh minh chứng dán trong ghi chú (TinyMCE) — chụp hiện trường nên có thể
-// rất lớn, chỉ giới hạn KHÔNG cho vượt khổ trang in (thu nhỏ nếu cần, KHÔNG
-// phóng to ảnh nhỏ — xem tiLe = min(..., 1) ở taiAnhTheoUrl).
+// rất lớn. Xếp tối đa 2 ảnh/hàng (xem taoBangAnhMinhChung): ảnh đi cặp bị
+// chặn nhỏ (~1/2 khổ trang, chặn cả chiều cao để 2 ảnh cùng hàng không lệch
+// nhau quá), ảnh LẺ cuối cùng nằm riêng 1 hàng nên được to hơn. Chỉ thu nhỏ,
+// KHÔNG phóng to ảnh nhỏ — xem tiLe = min(..., 1) ở coGianAnh.
 const ANH_MINH_CHUNG_CAO_TOI_DA = 500;
 const ANH_MINH_CHUNG_RONG_TOI_DA = 500;
+const ANH_MINH_CHUNG_CAP_CAO_TOI_DA = 220;
+const ANH_MINH_CHUNG_CAP_RONG_TOI_DA = 280;
+
+// Chiều rộng vùng in A4 (11906 twip) trừ lề mặc định 1440 twip mỗi bên —
+// chia đôi cho 2 cột bảng ảnh; khai báo columnWidths để ô gộp (columnSpan: 2)
+// của ảnh lẻ vẫn đúng lưới kể cả khi bảng chỉ có 1 hàng đó (phiếu có 1 ảnh).
+const RONG_COT_ANH_MINH_CHUNG = Math.floor((11906 - 1440 * 2) / 2);
 
 // src trong HTML ghi chú đã là URL TUYỆT ĐỐI (ghép sẵn ApiRootV2 lúc upload —
 // xem TinyMceModal.tsx/TinyMceInline.tsx), khác với duongDanChuKy (tương đối)
-// ở trên nên gọi thẳng taiAnhTheoUrl, không ghép thêm ApiRootV2.
+// ở trên nên gọi thẳng taiAnhTheoUrl, không ghép thêm ApiRootV2. Giữ kích
+// thước GỐC lúc tải — chỉ biết ảnh đi cặp hay nằm riêng sau khi gom đủ danh
+// sách, lúc đó mới coGianAnh theo vị trí.
 const layAnhMinhChung = (url: string): Promise<AnhDaTai | null> =>
-    taiAnhTheoUrl(url, ANH_MINH_CHUNG_CAO_TOI_DA, ANH_MINH_CHUNG_RONG_TOI_DA);
+    taiAnhTheoUrl(url, Infinity, Infinity);
+
+const coGianAnh = (anh: AnhDaTai, caoToiDa: number, rongToiDa: number): AnhDaTai => {
+    const tiLe = Math.min(caoToiDa / anh.cao, rongToiDa / anh.rong, 1);
+    return { ...anh, cao: Math.round(anh.cao * tiLe), rong: Math.round(anh.rong * tiLe) };
+};
+
+// 1 ô ảnh minh chứng: ảnh + chú thích "Hình i" bên dưới. Căn đáy để chú
+// thích 2 ảnh cùng hàng (khác chiều cao) vẫn thẳng hàng nhau.
+const oAnhMinhChung = (anh: AnhDaTai, soThuTu: number, columnSpan?: number) =>
+    new TableCell({
+        columnSpan,
+        width: { size: columnSpan ? 100 : 50, type: WidthType.PERCENTAGE },
+        verticalAlign: VerticalAlign.BOTTOM,
+        margins: { top: 40, bottom: 40, left: 80, right: 80 },
+        children: [
+            new Paragraph({
+                alignment: AlignmentType.CENTER,
+                spacing: { after: 40 },
+                children: [new ImageRun({ type: anh.type, data: anh.data, transformation: { width: anh.rong, height: anh.cao } })],
+            }),
+            oDoan(`Hình ${soThuTu}`, { canGiua: true, nghieng: true, canhSau: 200 }),
+        ],
+    });
+
+// Xếp ảnh minh chứng thành bảng không viền, tối đa 2 ảnh/hàng theo đúng thứ
+// tự: số ảnh chẵn -> toàn bộ đi cặp; số ảnh lẻ -> ảnh CUỐI nằm riêng 1 hàng
+// (gộp 2 cột), to hơn ảnh đi cặp. VD 3 ảnh: [1][2] / [ 3 ].
+const taoBangAnhMinhChung = (dsAnh: AnhDaTai[]): Table => {
+    const hang: TableRow[] = [];
+    for (let i = 0; i < dsAnh.length; i += 2) {
+        const anhTrai = dsAnh[i];
+        const anhPhai = dsAnh[i + 1];
+        hang.push(
+            new TableRow({
+                cantSplit: true, // không cắt ngang ảnh qua 2 trang
+                children: anhPhai
+                    ? [
+                          oAnhMinhChung(coGianAnh(anhTrai, ANH_MINH_CHUNG_CAP_CAO_TOI_DA, ANH_MINH_CHUNG_CAP_RONG_TOI_DA), i + 1),
+                          oAnhMinhChung(coGianAnh(anhPhai, ANH_MINH_CHUNG_CAP_CAO_TOI_DA, ANH_MINH_CHUNG_CAP_RONG_TOI_DA), i + 2),
+                      ]
+                    : [oAnhMinhChung(coGianAnh(anhTrai, ANH_MINH_CHUNG_CAO_TOI_DA, ANH_MINH_CHUNG_RONG_TOI_DA), i + 1, 2)],
+            })
+        );
+    }
+    return new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        columnWidths: [RONG_COT_ANH_MINH_CHUNG, RONG_COT_ANH_MINH_CHUNG],
+        borders: TableBorders.NONE,
+        rows: hang,
+    });
+};
 
 // Lấy DANH SÁCH src ảnh trong 1 đoạn HTML ghi chú, ĐÚNG THỨ TỰ xuất hiện —
 // dùng để gom toàn bộ ảnh minh chứng của phiếu (nhiều ô ghi chú khác nhau)
@@ -490,8 +552,8 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
     // ---- Ảnh minh chứng dán trong các ô ghi chú (checklist + kết luận) ----
     // Gom src ĐÚNG THỨ TỰ xuất hiện trên phiếu: từng nhóm/dòng checklist (theo
     // đúng thứ tự nhomVaDong -> dongKhongNhom, y hệt thứ tự bảng "1. Thực
-    // trạng đánh giá" ở trên), rồi tới ghi chú Kết luận — sau đó chèn TỪNG ẢNH
-    // MỘT DÒNG xuống cuối văn bản, đúng thứ tự đã gom.
+    // trạng đánh giá" ở trên), rồi tới ghi chú Kết luận — sau đó xếp tối đa 2
+    // ảnh/hàng xuống cuối văn bản, đúng thứ tự đã gom (xem taoBangAnhMinhChung).
     const anhMinhChungSrc: string[] = [
         ...nhomVaDong.flatMap(({ dong }) => dong.flatMap(d => layDanhSachAnhTrongHtml(d.ghiChuHtml))),
         ...dongKhongNhom.flatMap(d => layDanhSachAnhTrongHtml(d.ghiChuHtml)),
@@ -500,18 +562,11 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
     const anhMinhChungDaTai = (await Promise.all(anhMinhChungSrc.map(layAnhMinhChung)))
         .filter((anh): anh is AnhDaTai => anh !== null);
 
-    const khoiAnhMinhChung: Paragraph[] =
+    const khoiAnhMinhChung: (Paragraph | Table)[] =
         anhMinhChungDaTai.length > 0
             ? [
                   oDoan("Hình ảnh minh chứng", { dam: true, canhTruoc: 300, canhSau: 100 }),
-                  ...anhMinhChungDaTai.flatMap((anh, i) => [
-                      new Paragraph({
-                          alignment: AlignmentType.CENTER,
-                          spacing: { after: 40 },
-                          children: [new ImageRun({ type: anh.type, data: anh.data, transformation: { width: anh.rong, height: anh.cao } })],
-                      }),
-                      oDoan(`Hình ${i + 1}`, { canGiua: true, nghieng: true, canhSau: 200 }),
-                  ]),
+                  taoBangAnhMinhChung(anhMinhChungDaTai),
               ]
             : [];
 
@@ -548,11 +603,11 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                             }),
                             new Paragraph({
                                 alignment: AlignmentType.RIGHT,
-                                children: [oChu(`Ngày hiệu lực: ${THONG_TIN_BIEU_MAU_PHIEU1?.ngayHieuLuc ?? ""}`, { nghieng: true, co: 22, dam: true })],
+                                children: [oChu(`Ngày hiệu lực: ${THONG_TIN_BIEU_MAU_PHIEU1?.ngayHieuLuc ?? ""}`, {  co: 22, dam: true })],
                             }),
                             new Paragraph({
                                 alignment: AlignmentType.RIGHT,
-                                children: [oChu(`Lần sửa đổi: ${THONG_TIN_BIEU_MAU_PHIEU1?.lanSuaDoi ?? ""}`, { nghieng: true, co: 22, dam: true })],
+                                children: [oChu(`Lần sửa đổi: ${THONG_TIN_BIEU_MAU_PHIEU1?.lanSuaDoi ?? ""}`, {  co: 22, dam: true })],
                             }),
                         ],
                     }),
@@ -585,7 +640,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                     headerTable,
                     oDoan(`Số: ${soHieu || "........................"}`, { co: 22, canhTruoc: 100, canhSau: 100 }),
                     oDoan("PHIẾU KIỂM TRA CÔNG TÁC VSATTP", { dam: true, canGiua: true, co: CO_CHU_TIEU_DE, canhSau: 0 }),
-                    oDoan(`TẠI BẾP ĂN ${tenBepAn || "........................"}`, { dam: true, canGiua: true, co: CO_CHU_TIEU_DE, canhSau: 200 }),
+                    oDoan(`TẠI BẾP ĂN ${tenBepAn?.toLocaleUpperCase("vi-VN") ||"........................"}`, { dam: true, canGiua: true, co: CO_CHU_TIEU_DE, canhSau: 200 }),
 
                     oDoan(`Nhà thầu: ${tenNhaThau || "........................"}`, { dam: true, canGiua: true }),
                     oDoan(`Ngày kiểm tra: ${ngayKiemTra}`, { canhSau: 200, dam: true, canGiua: true }),
