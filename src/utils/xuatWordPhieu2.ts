@@ -74,10 +74,11 @@ const oChu = (text: string, opts: { dam?: boolean; nghieng?: boolean; gachChan?:
 
 const oDoan = (
     text: string,
-    opts: { dam?: boolean; nghieng?: boolean; canGiua?: boolean; co?: number; canhTruoc?: number; canhSau?: number } = {}
+    opts: { dam?: boolean; nghieng?: boolean; canGiua?: boolean; co?: number; canhTruoc?: number; canhSau?: number; sangTrangMoi?: boolean } = {}
 ) =>
     new Paragraph({
         alignment: opts.canGiua ? AlignmentType.CENTER : undefined,
+        pageBreakBefore: opts.sangTrangMoi,
         spacing: { before: opts.canhTruoc ?? 0, after: opts.canhSau ?? 80 },
         children: [oChu(text, opts)],
     });
@@ -399,10 +400,10 @@ const layDanhSachAnhTrongHtml = (html?: string): string[] => {
 
 // "Quảng Ngãi, ngày ... tháng ... năm ..." trên chuKyTable — lấy theo ngày
 // lập phiếu (NgayTao), không phải ngày xuất Word.
-const ngayLapHienThi = (ngayLap?: string): string => {
-    const d = ngayLap ? dayjs(ngayLap) : dayjs();
-    return `Quảng Ngãi, ngày ${d.format("DD")} tháng ${d.format("MM")} năm ${d.format("YYYY")}`;
-};
+// const ngayLapHienThi = (ngayLap?: string): string => {
+//     const d = ngayLap ? dayjs(ngayLap) : dayjs();
+//     return `Quảng Ngãi, ngày ${d.format("DD")} tháng ${d.format("MM")} năm ${d.format("YYYY")}`;
+// };
 
 // Ảnh logo gốc 756x309px — giữ đúng tỉ lệ khi thu nhỏ cho khớp
 // .phieu-header-logo (xem PhieuHeader.tsx / _phieu-base.scss).
@@ -467,8 +468,8 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
         }),
         new TableRow({
             children: [
-                oOBang(thoiGianKiemTraText || "--", { canTrai: true, width: RONG_THOI_GIAN }),
-                oOBang(viTriKiemTra || "--", { canTrai: true, width: RONG_VI_TRI }),
+                oOBang(thoiGianKiemTraText || "", { canTrai: true, width: RONG_THOI_GIAN }),
+                oOBang(viTriKiemTra || "", { canTrai: true, width: RONG_VI_TRI }),
                 ...danhSachTieuChi.flatMap(tc => [
                     oOBang(
                         tc.dat
@@ -559,7 +560,7 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
                 children: chuKy.map((_, i) =>
                     new TableCell({
                         width: { size: rongCot, type: WidthType.PERCENTAGE },
-                        children: [i === chuKy.length - 1 ? oDoan(ngayLapHienThi(ngayLap), { nghieng: true, canGiua: true }) : new Paragraph({})],
+                        children: [new Paragraph({})],
                     })
                 ),
             }),
@@ -589,10 +590,11 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
     const anhMinhChungDaTai = (await Promise.all(anhMinhChungSrc.map(layAnhMinhChung)))
         .filter((anh): anh is AnhDaTai => anh !== null);
 
+    // Khối ảnh luôn bắt đầu ở trang mới, tách hẳn khỏi phần biểu mẫu phía trên.
     const khoiAnhMinhChung: (Paragraph | Table)[] =
         anhMinhChungDaTai.length > 0
             ? [
-                  oDoan("Hình ảnh minh chứng", { dam: true, canhTruoc: 300, canhSau: 100 }),
+                  oDoan("Hình ảnh minh chứng", { dam: true, canhSau: 100, sangTrangMoi: true }),
                   taoBangAnhMinhChung(anhMinhChungDaTai),
               ]
             : [];
@@ -630,11 +632,11 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
                             }),
                             new Paragraph({
                                 alignment: AlignmentType.RIGHT,
-                                children: [oChu(`Ngày hiệu lực: ${THONG_TIN_BIEU_MAU_PHIEU2?.ngayHieuLuc ?? ""}`, { dam: true })],
+                                children: [oChu(`Ngày hiệu lực: `, {nghieng: true, dam: true }), oChu(`${THONG_TIN_BIEU_MAU_PHIEU2?.ngayHieuLuc ?? ""}`, { dam: true })],
                             }),
                             new Paragraph({
                                 alignment: AlignmentType.RIGHT,
-                                children: [oChu(`Lần sửa đổi: ${THONG_TIN_BIEU_MAU_PHIEU2?.lanSuaDoi ?? ""}`, { dam: true })],
+                                children: [oChu(`Lần sửa đổi: `, {nghieng: true,dam: true }), oChu(`${THONG_TIN_BIEU_MAU_PHIEU2?.lanSuaDoi ?? ""}`, {dam: true })],
                             }),
                         ],
                     }),
