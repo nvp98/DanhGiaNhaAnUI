@@ -57,10 +57,11 @@ const oChu = (text: string, opts: { dam?: boolean; nghieng?: boolean; gachChan?:
 
 const oDoan = (
     text: string,
-    opts: { dam?: boolean; nghieng?: boolean; canGiua?: boolean; co?: number; canhTruoc?: number; canhSau?: number } = {}
+    opts: { dam?: boolean; nghieng?: boolean; canGiua?: boolean; co?: number; canhTruoc?: number; canhSau?: number; sangTrangMoi?: boolean } = {}
 ) =>
     new Paragraph({
         alignment: opts.canGiua ? AlignmentType.CENTER : undefined,
+        pageBreakBefore: opts.sangTrangMoi,
         spacing: { before: opts.canhTruoc ?? 0, after: opts.canhSau ?? 80 },
         children: [oChu(text, opts)],
     });
@@ -118,8 +119,9 @@ const layTextRunsTuNode = (node: Node, ke: KieuChu): TextRun[] => {
     return Array.from(el.childNodes).flatMap(con => layTextRunsTuNode(con, keMoi));
 };
 
-const dichHtmlSangDoan = (html?: string, rongKhi?: string): Paragraph[] => {
-    if (!html || !html.trim()) return [new Paragraph({ children: [oChu(rongKhi ?? "")] })];
+// Ghi chú rỗng -> 1 đoạn trống (ô bảng bắt buộc có ít nhất 1 Paragraph), không hiện gì.
+const dichHtmlSangDoan = (html?: string): Paragraph[] => {
+    if (!html || !html.trim()) return [new Paragraph({})];
 
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, "text/html");
@@ -165,7 +167,7 @@ const dichHtmlSangDoan = (html?: string, rongKhi?: string): Paragraph[] => {
 
     Array.from(doc.body.childNodes).forEach(xuLyKhoi);
 
-    return ketQua.length > 0 ? ketQua : [new Paragraph({ children: [oChu(rongKhi ?? "")] })];
+    return ketQua.length > 0 ? ketQua : [new Paragraph({})];
 };
 
 // ============================================================
@@ -389,10 +391,10 @@ const layDanhSachAnhTrongHtml = (html?: string): string[] => {
 
 // "Quảng Ngãi, ngày ... tháng ... năm ..." trên chuKyTable — lấy theo ngày
 // lập phiếu (NgayTao), không phải ngày xuất Word.
-const ngayLapHienThi = (ngayLap?: string): string => {
-    const d = ngayLap ? dayjs(ngayLap) : dayjs();
-    return `Quảng Ngãi, ngày ${d.format("DD")} tháng ${d.format("MM")} năm ${d.format("YYYY")}`;
-};
+// const ngayLapHienThi = (ngayLap?: string): string => {
+//     const d = ngayLap ? dayjs(ngayLap) : dayjs();
+//     return `Quảng Ngãi, ngày ${d.format("DD")} tháng ${d.format("MM")} năm ${d.format("YYYY")}`;
+// };
 
 // Ảnh logo gốc 756x309px — giữ đúng tỉ lệ khi thu nhỏ cho khớp
 // .phieu-header-logo (xem PhieuHeader.tsx / _phieu-base.scss).
@@ -415,7 +417,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
         nhomVaDong, dongKhongNhom, ketLuan, chuKy,
     } = params;
 
-    // ---- Bảng checklist "1. Thực trạng đánh giá" ----
+    //  Bảng checklist "1. Thực trạng đánh giá" 
     const dongChecklist = (dong: XuatWordPhieu1Dong) =>
         new TableRow({
             children: [
@@ -423,7 +425,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                 oOBang(dong.noiDung, { canTrai: true, width: 44 }),
                 oOBang(dong.ketQua === "DAT" ? "✓" : "", { width: 12 }),
                 oOBang(dong.ketQua === "KHONG_DAT" ? "✓" : "", { width: 12 }),
-                oOBang(dichHtmlSangDoan(dong.ghiChuHtml, "--"), { canTrai: true, width: 26 }),
+                oOBang(dichHtmlSangDoan(dong.ghiChuHtml), { canTrai: true, width: 26 }),
             ],
         });
 
@@ -458,12 +460,12 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
         dongKhongNhom.forEach(d => checklistRows.push(dongChecklist(d)));
     }
 
-    // ---- Bảng "2. Kết luận" ----
+    // -- Bảng "2. Kết luận" 
     const phanTramHienThi = (v: number | null) =>
-        v === null ? "--" : v.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        v === null ? "" : v.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const diemHienThi = (v: number | null) =>
-        v === null ? "--" : v.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const ketLuanHienThi = (v: string | null) => (v === "DAT" ? "Đạt" : v === "KHONG_DAT" ? "Không đạt" : "--");
+        v === null ? "" : v.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const ketLuanHienThi = (v: string | null) => (v === "DAT" ? "Đạt" : v === "KHONG_DAT" ? "Không đạt" : "");
 
     const ketLuanRows: TableRow[] = [
         new TableRow({
@@ -486,12 +488,12 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                 oOBang(phanTramHienThi(ketLuan.tyLe)),
                 oOBang(ketLuanHienThi(ketLuan.ketLuan)),
                 oOBang(diemHienThi(ketLuan.diem)),
-                oOBang(dichHtmlSangDoan(ketLuan.ghiChuHtml, "--"), { canTrai: true }),
+                oOBang(dichHtmlSangDoan(ketLuan.ghiChuHtml), { canTrai: true }),
             ],
         }),
     ];
 
-    // ---- Chữ ký ---- số cột ĐỘNG theo luồng ký thật đang cấu hình (Admin có
+    //  Chữ ký  số cột ĐỘNG theo luồng ký thật đang cấu hình (Admin có
     // thể đặt tên bước/số bước khác nhau cho Phiếu 1, không hard-code như
     // Phiếu 3/4 — xem PhieuSignatures.tsx render động cùng dữ liệu này).
     const soBuoc = Math.max(chuKy.length, 1);
@@ -531,7 +533,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                 children: chuKy.map((_, i) =>
                     new TableCell({
                         width: { size: rongCot, type: WidthType.PERCENTAGE },
-                        children: [i === chuKy.length - 1 ? oDoan(ngayLapHienThi(ngayLap), { nghieng: true, canGiua: true }) : new Paragraph({})],
+                        children: [new Paragraph({})],
                     })
                 ),
             }),
@@ -549,7 +551,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
         ],
     });
 
-    // ---- Ảnh minh chứng dán trong các ô ghi chú (checklist + kết luận) ----
+    //  Ảnh minh chứng dán trong các ô ghi chú (checklist + kết luận) 
     // Gom src ĐÚNG THỨ TỰ xuất hiện trên phiếu: từng nhóm/dòng checklist (theo
     // đúng thứ tự nhomVaDong -> dongKhongNhom, y hệt thứ tự bảng "1. Thực
     // trạng đánh giá" ở trên), rồi tới ghi chú Kết luận — sau đó xếp tối đa 2
@@ -562,15 +564,16 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
     const anhMinhChungDaTai = (await Promise.all(anhMinhChungSrc.map(layAnhMinhChung)))
         .filter((anh): anh is AnhDaTai => anh !== null);
 
+    // Khối ảnh luôn bắt đầu ở trang mới, tách hẳn khỏi phần biểu mẫu phía trên.
     const khoiAnhMinhChung: (Paragraph | Table)[] =
         anhMinhChungDaTai.length > 0
             ? [
-                  oDoan("Hình ảnh minh chứng", { dam: true, canhTruoc: 300, canhSau: 100 }),
+                  oDoan("Hình ảnh minh chứng", { dam: true, canhSau: 100, sangTrangMoi: true }),
                   taoBangAnhMinhChung(anhMinhChungDaTai),
               ]
             : [];
 
-    // ---- Header (logo + thông tin biểu mẫu) ----
+    //  Header (logo + thông tin biểu mẫu) 
     const logoBuffer = await fetch(logoPdf).then(r => r.arrayBuffer());
     const headerTable = new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
@@ -603,11 +606,11 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                             }),
                             new Paragraph({
                                 alignment: AlignmentType.RIGHT,
-                                children: [oChu(`Ngày hiệu lực: ${THONG_TIN_BIEU_MAU_PHIEU1?.ngayHieuLuc ?? ""}`, {  co: 22, dam: true })],
+                                children: [oChu(`Ngày hiệu lực: `, { nghieng: true, co: 22, dam: true }), oChu(`${THONG_TIN_BIEU_MAU_PHIEU1?.ngayHieuLuc ?? ""}`, { co: 22, dam: true })],
                             }),
                             new Paragraph({
                                 alignment: AlignmentType.RIGHT,
-                                children: [oChu(`Lần sửa đổi: ${THONG_TIN_BIEU_MAU_PHIEU1?.lanSuaDoi ?? ""}`, {  co: 22, dam: true })],
+                                children: [oChu(`Lần sửa đổi: `, { nghieng: true, co: 22, dam: true }), oChu(`${THONG_TIN_BIEU_MAU_PHIEU1?.lanSuaDoi ?? ""}`, { co: 22, dam: true })],
                             }),
                         ],
                     }),
