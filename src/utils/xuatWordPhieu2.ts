@@ -16,7 +16,6 @@ import {
     VerticalAlign,
     WidthType,
 } from "docx";
-import dayjs from "dayjs";
 import { saveAs } from "file-saver";
 import logoPdf from "../assets/images/LogoPDF.png";
 import phieuHeaderInfo from "../config/phieuHeaderInfo.json";
@@ -422,7 +421,7 @@ const THONG_TIN_BIEU_MAU_PHIEU2 = (phieuHeaderInfo as Record<string, {
 // Dựng file .docx + tên file gốc (không đuôi).
 const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: Blob; tenGoc: string }> => {
     const {
-        soHieu, ngayLap, tenNhaThau, ngayKiemTra, thoiGianKiemTraText, viTriKiemTra,
+        soHieu, tenNhaThau, ngayKiemTra, thoiGianKiemTraText, viTriKiemTra,
         danhSachTieuChi, yKienHtml, chuKy,
     } = params;
 
@@ -557,7 +556,7 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
         borders: TableBorders.NONE,
         rows: [
             new TableRow({
-                children: chuKy.map((_, i) =>
+                children: chuKy.map(() =>
                     new TableCell({
                         width: { size: rongCot, type: WidthType.PERCENTAGE },
                         children: [new Paragraph({})],
