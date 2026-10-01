@@ -1,13 +1,14 @@
 import { Button, DatePicker, Input, InputNumber, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FaEdit, FaFileWord, FaImage, FaSave } from "react-icons/fa";
+import { FaEdit, FaImage, FaSave } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
 import LayoutV2Component from "../../components/LayoutV2Component";
 import {
     GhiChuHtml,
+    NutXuatFile,
     PhieuActions,
     PhieuHeader,
     PhieuInputCard,
@@ -40,7 +41,7 @@ import {
 
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
-import xuatWordPhieu2 from "../../utils/xuatWordPhieu2";
+import { quayVeDanhSach } from "../../utils/giuKhiQuayLai";
 
 import "./Phieu2FormPage.scss";
 
@@ -144,7 +145,6 @@ const Phieu2FormPage: React.FC = () => {
     const [locNgayP1, setLocNgayP1] = useState<dayjs.Dayjs | null>(null);
     const [danhSachTieuChi, setDanhSachTieuChi] = useState<DongTieuChi[]>(khoiTaoTieuChi());
     const [daKhoiTao, setDaKhoiTao] = useState(false);
-    const [dangXuatWord, setDangXuatWord] = useState(false);
 
     // Ý kiến nhà thầu — lưu độc lập qua API riêng
     const [yKien, setYKien] = useState("");
@@ -459,7 +459,8 @@ const Phieu2FormPage: React.FC = () => {
                     messageNotify: "",
                 })
             );
-            navigator("/phieu2");
+            // Mở phiếu thẳng từ danh sách -> lùi lịch sử để danh sách giữ form tìm kiếm.
+            quayVeDanhSach(navigator, "phieu2", "/phieu2");
         } catch (error: any) {
             dispatch(
                 setNotify({
@@ -549,16 +550,9 @@ const Phieu2FormPage: React.FC = () => {
         })),
     });
 
-    const xuLyXuatWord = async () => {
-        setDangXuatWord(true);
-        try {
-            await xuatWordPhieu2(layThamSoXuatPhieu2());
-        } catch (error: any) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Word thất bại", messageNotify: "" }));
-        } finally {
-            setDangXuatWord(false);
-        }
-    };
+    // Import động — thư viện docx/pdfmake chỉ tải khi bấm nút, xem NutXuatFile.
+    const xuatWord = async () => (await import("../../utils/xuatWordPhieu2")).default(layThamSoXuatPhieu2());
+    const xuatPdf = async () => (await import("../../utils/pdf/xuatPdfPhieu2")).default(layThamSoXuatPhieu2());
 
     const soTieuChiDat = danhSachTieuChi.filter(tc => tc.dat).length;
     const soTieuChiKhongDat = danhSachTieuChi.filter(tc => tc.khongDat).length;
@@ -632,18 +626,7 @@ const Phieu2FormPage: React.FC = () => {
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}
-                extraButtons={
-                    !laTaoMoi && (
-                        <Button
-                            className="no-print"
-                            icon={<FaFileWord />}
-                            loading={dangXuatWord}
-                            onClick={xuLyXuatWord}
-                        >
-                            Xuất Word
-                        </Button>
-                    )
-                }
+                extraButtons={!laTaoMoi && <NutXuatFile xuatWord={xuatWord} xuatPdf={xuatPdf} />}
             />
 
             {/* 2. FORM THÔNG TIN NHẬP LIỆU (NO-PRINT) */}

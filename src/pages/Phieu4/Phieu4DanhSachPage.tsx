@@ -13,6 +13,7 @@ import { locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
 import { useDanhSachPhieu4Query, useThemPhieu4Mutation, useXoaPhieu4Mutation } from "../../services/phieu4Api";
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
+import { useGiuKhiQuayLai } from "../../utils/giuKhiQuayLai";
 
 const { RangePicker } = DatePicker;
 
@@ -28,17 +29,23 @@ interface BoLocDaApDung {
 
 const BO_LOC_MAC_DINH: BoLocDaApDung = { page: 1, pageSize: 10 };
 
+// Khóa trang cho useGiuKhiQuayLai — trùng với khóa quayVeDanhSach dùng ở
+// Phieu4FormPage.tsx khi xóa phiếu.
+const TRANG = "phieu4";
+
 const Phieu4DanhSachPage: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
     const dispatch = useDispatch();
     const navigator = useNavigate();
 
-    const [nhapTrangThai, setNhapTrangThai] = useState<string | undefined>(undefined);
-    const [nhapTuKhoa, setNhapTuKhoa] = useState("");
-    const [nhapKhoangNgay, setNhapKhoangNgay] = useState<[Dayjs | null, Dayjs | null] | null>(null);
-    const [nhapChiCuaToi, setNhapChiCuaToi] = useState(false);
+    // useGiuKhiQuayLai: giữ nguyên form + trang đang xem khi mở 1 phiếu rồi
+    // quay lại ngay, xem utils/giuKhiQuayLai.ts.
+    const [nhapTrangThai, setNhapTrangThai] = useGiuKhiQuayLai<string | undefined>(TRANG, "trangThai", undefined);
+    const [nhapTuKhoa, setNhapTuKhoa] = useGiuKhiQuayLai(TRANG, "tuKhoa", "");
+    const [nhapKhoangNgay, setNhapKhoangNgay] = useGiuKhiQuayLai<[Dayjs | null, Dayjs | null] | null>(TRANG, "khoangNgay", null);
+    const [nhapChiCuaToi, setNhapChiCuaToi] = useGiuKhiQuayLai(TRANG, "chiCuaToi", false);
 
-    const [boLoc, setBoLoc] = useState<BoLocDaApDung>(BO_LOC_MAC_DINH);
+    const [boLoc, setBoLoc] = useGiuKhiQuayLai<BoLocDaApDung>(TRANG, "boLoc", BO_LOC_MAC_DINH);
 
     const xuLyTim = () => {
         setBoLoc({

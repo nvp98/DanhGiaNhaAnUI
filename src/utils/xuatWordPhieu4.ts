@@ -360,7 +360,7 @@ export const xuatWordPhieu4 = async (params: XuatWordPhieu4Params): Promise<void
     const footer = new Footer({
         children: [
             new Paragraph({
-                alignment: AlignmentType.RIGHT,
+                alignment: AlignmentType.CENTER,
                 children: [
                     oChu("Trang "),
                     new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.CURRENT] }),

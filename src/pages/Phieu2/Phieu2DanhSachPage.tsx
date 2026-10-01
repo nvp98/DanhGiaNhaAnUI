@@ -1,6 +1,6 @@
 import { Button, Checkbox, DatePicker, Input, Popconfirm, Select, Table, TableColumnsType, Tag } from "antd";
 import { Dayjs } from "dayjs";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { FaSearch, FaTrash, FaUtensils } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
@@ -13,6 +13,7 @@ import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
 import { useDanhSachPhieu2Query, useXoaPhieu2Mutation } from "../../services/phieu2Api";
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
+import { useGiuKhiQuayLai } from "../../utils/giuKhiQuayLai";
 
 const { RangePicker } = DatePicker;
 
@@ -31,6 +32,10 @@ interface BoLocDaApDung {
 }
 
 const BO_LOC_MAC_DINH: BoLocDaApDung = { page: 1, pageSize: 10 };
+
+// Khóa trang cho useGiuKhiQuayLai — trùng với khóa quayVeDanhSach dùng ở
+// Phieu2FormPage.tsx khi xóa phiếu.
+const TRANG = "phieu2";
 
 const Phieu2DanhSachPage: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
@@ -57,16 +62,18 @@ const Phieu2DanhSachPage: React.FC = () => {
         }
     };
 
-    const [nhapNhaThauId, setNhapNhaThauId] = useState<number | undefined>(undefined);
-    const [nhapBepAnId, setNhapBepAnId] = useState<number | undefined>(undefined);
-    const [nhapThang, setNhapThang] = useState<number | undefined>(undefined);
-    const [nhapNam, setNhapNam] = useState<number | undefined>(undefined);
-    const [nhapTrangThai, setNhapTrangThai] = useState<string | undefined>(undefined);
-    const [nhapTuKhoa, setNhapTuKhoa] = useState("");
-    const [nhapKhoangNgay, setNhapKhoangNgay] = useState<[Dayjs | null, Dayjs | null] | null>(null);
-    const [nhapChiCuaToi, setNhapChiCuaToi] = useState(false);
+    // useGiuKhiQuayLai: giữ nguyên form + trang đang xem khi mở 1 phiếu rồi
+    // quay lại ngay, xem utils/giuKhiQuayLai.ts.
+    const [nhapNhaThauId, setNhapNhaThauId] = useGiuKhiQuayLai<number | undefined>(TRANG, "nhaThauId", undefined);
+    const [nhapBepAnId, setNhapBepAnId] = useGiuKhiQuayLai<number | undefined>(TRANG, "bepAnId", undefined);
+    const [nhapThang, setNhapThang] = useGiuKhiQuayLai<number | undefined>(TRANG, "thang", undefined);
+    const [nhapNam, setNhapNam] = useGiuKhiQuayLai<number | undefined>(TRANG, "nam", undefined);
+    const [nhapTrangThai, setNhapTrangThai] = useGiuKhiQuayLai<string | undefined>(TRANG, "trangThai", undefined);
+    const [nhapTuKhoa, setNhapTuKhoa] = useGiuKhiQuayLai(TRANG, "tuKhoa", "");
+    const [nhapKhoangNgay, setNhapKhoangNgay] = useGiuKhiQuayLai<[Dayjs | null, Dayjs | null] | null>(TRANG, "khoangNgay", null);
+    const [nhapChiCuaToi, setNhapChiCuaToi] = useGiuKhiQuayLai(TRANG, "chiCuaToi", false);
 
-    const [boLoc, setBoLoc] = useState<BoLocDaApDung>(BO_LOC_MAC_DINH);
+    const [boLoc, setBoLoc] = useGiuKhiQuayLai<BoLocDaApDung>(TRANG, "boLoc", BO_LOC_MAC_DINH);
 
     const xuLyTim = () => {
         setBoLoc({

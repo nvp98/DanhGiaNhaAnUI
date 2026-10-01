@@ -19,7 +19,17 @@ import {
 import { saveAs } from "file-saver";
 import logoPdf from "../assets/images/LogoPDF.png";
 import phieuHeaderInfo from "../config/phieuHeaderInfo.json";
-import { ApiRootV2 } from "../services/LinkServerV2";
+import {
+    ANH_MINH_CHUNG_CAO_TOI_DA,
+    ANH_MINH_CHUNG_CAP_CAO_TOI_DA,
+    ANH_MINH_CHUNG_CAP_RONG_TOI_DA,
+    ANH_MINH_CHUNG_RONG_TOI_DA,
+    type AnhDaTai,
+    coGianAnh,
+    layAnhChuKy,
+    layAnhMinhChung,
+} from "./anhWord";
+import { docHtmlGhiChu, layDanhSachAnhTrongHtml } from "./ghiChuHtml";
 
 // Xuất file .docx khớp đúng layout Phieu2FormPage.tsx (phiếu đánh giá chất
 // lượng dịch vụ suất ăn — Phiếu 2), theo đúng cách làm của xuatWordPhieu1.ts.
@@ -105,88 +115,32 @@ const oOBang = (
     });
 
 // ============================================================
-// DỊCH HTML (TinyMCE) -> Paragraph[] — giữ đậm/nghiêng/gạch chân/danh sách.
-// KHÔNG dịch ảnh (<img>) tại chỗ — ảnh được gom riêng (layDanhSachAnhTrongHtml)
-// và chèn ở khối "Hình ảnh minh chứng" cuối văn bản, xem khoiAnhMinhChung.
+// DỊCH HTML (TinyMCE) -> Paragraph[] — đọc HTML qua docHtmlGhiChu (dùng
+// chung với xuất PDF, xem ghiChuHtml.ts) rồi dựng Paragraph/TextRun.
 // ============================================================
-
-interface KieuChu {
-    dam?: boolean;
-    nghieng?: boolean;
-    gachChan?: boolean;
-}
-
-const layTextRunsTuNode = (node: Node, ke: KieuChu, co?: number): TextRun[] => {
-    if (node.nodeType === Node.TEXT_NODE) {
-        const text = node.textContent ?? "";
-        return text ? [oChu(text, { ...ke, co })] : [];
-    }
-    if (node.nodeType !== Node.ELEMENT_NODE) return [];
-
-    const el = node as HTMLElement;
-    const tag = el.tagName.toLowerCase();
-    if (tag === "img") return []; // bỏ qua ảnh
-    if (tag === "br") return [new TextRun({ text: "", break: 1 })];
-
-    const keMoi: KieuChu = {
-        dam: ke.dam || tag === "strong" || tag === "b",
-        nghieng: ke.nghieng || tag === "em" || tag === "i",
-        gachChan: ke.gachChan || tag === "u",
-    };
-    return Array.from(el.childNodes).flatMap(con => layTextRunsTuNode(con, keMoi, co));
-};
 
 // `co` — cỡ chữ riêng cho nội dung dịch ra (mặc định CO_CHU của văn bản
 // thường) — dùng CO_CHU_BANG khi gọi cho ô "Ghi chú" trong bảng đánh giá
 // (nhiều cột, xem bangRows) để khớp cỡ chữ với phần còn lại của bảng.
 const dichHtmlSangDoan = (html?: string, rongKhi?: string, co?: number): Paragraph[] => {
-    if (!html || !html.trim()) return [new Paragraph({ children: [oChu(rongKhi ?? "", { co })] })];
+    const doanVan = docHtmlGhiChu(html);
+    if (doanVan.length === 0) return [new Paragraph({ children: [oChu(rongKhi ?? "", { co })] })];
 
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const ketQua: Paragraph[] = [];
-
-    const xuLyKhoi = (node: Node) => {
-        if (node.nodeType === Node.TEXT_NODE) {
-            const text = node.textContent?.trim();
-            if (text) ketQua.push(new Paragraph({ children: [oChu(text, { co })], spacing: { after: 60 } }));
-            return;
-        }
-        if (node.nodeType !== Node.ELEMENT_NODE) return;
-
-        const el = node as HTMLElement;
-        const tag = el.tagName.toLowerCase();
-
-        if (tag === "img") return; // bỏ qua ảnh
-        if (tag === "ul" || tag === "ol") {
-            Array.from(el.children).forEach(li => {
-                const runs = Array.from(li.childNodes).flatMap(con => layTextRunsTuNode(con, {}, co));
-                ketQua.push(
-                    new Paragraph({
-                        children: [oChu("• ", { co }), ...runs],
-                        spacing: { after: 40 },
-                        indent: { left: 360 },
-                    })
-                );
-            });
-            return;
-        }
-        if (["p", "div", "h1", "h2", "h3", "h4", "li", "blockquote"].includes(tag)) {
-            const runs = Array.from(el.childNodes).flatMap(con => layTextRunsTuNode(con, {}, co));
-            if (runs.length > 0) {
-                ketQua.push(new Paragraph({ children: runs, spacing: { after: 60 } }));
-            }
-            return;
-        }
-        if (tag === "table") return; // bảng lồng trong ghi chú — hiếm gặp, bỏ qua cho đơn giản
-
-        const runs = layTextRunsTuNode(el, {}, co);
-        if (runs.length > 0) ketQua.push(new Paragraph({ children: runs, spacing: { after: 60 } }));
-    };
-
-    Array.from(doc.body.childNodes).forEach(xuLyKhoi);
-
-    return ketQua.length > 0 ? ketQua : [new Paragraph({ children: [oChu(rongKhi ?? "", { co })] })];
+    return doanVan.map(
+        doan =>
+            new Paragraph({
+                children: [
+                    ...(doan.laMuc ? [oChu("• ", { co })] : []),
+                    ...doan.runs.map(r =>
+                        r.xuongDong
+                            ? new TextRun({ text: "", break: 1 })
+                            : oChu(r.text, { dam: r.dam, nghieng: r.nghieng, gachChan: r.gachChan, co })
+                    ),
+                ],
+                spacing: { after: doan.laMuc ? 40 : 60 },
+                indent: doan.laMuc ? { left: 360 } : undefined,
+            })
+    );
 };
 
 // ============================================================
@@ -241,104 +195,15 @@ const trangThaiChuKyHienThi = (trangThai: string, ghiChu?: string): string => {
 const MAU_XANH_DA_KY = "16A34A";
 
 // ============================================================
-// ẢNH (chữ ký thật + ảnh minh chứng dán trong ghi chú) — tải + đo kích thước
+// ẢNH (chữ ký thật + ảnh minh chứng dán trong ghi chú) — tải + thu nhỏ
 // trước khi build Document (docx cần biết width/height cụ thể lúc tạo
-// ImageRun, không tự co giãn như CSS). Thu nhỏ giữ tỉ lệ theo max riêng của
-// từng loại (xem ANH_KY_*/ANH_MINH_CHUNG_* bên dưới nơi dùng).
+// ImageRun), xem anhWord.ts.
 // ============================================================
-
-interface AnhDaTai {
-    data: ArrayBuffer;
-    type: "png" | "jpg" | "gif" | "bmp";
-    rong: number;
-    cao: number;
-}
-
-const loaiAnhTheoDuongDan = (duongDan: string): "png" | "jpg" | "gif" | "bmp" => {
-    const duoi = duongDan.split(/[.?#]/).filter(Boolean).pop()?.toLowerCase();
-    if (duoi === "jpg" || duoi === "jpeg") return "jpg";
-    if (duoi === "gif") return "gif";
-    if (duoi === "bmp") return "bmp";
-    return "png";
-};
-
-const layKichThuocAnh = (url: string): Promise<{ w: number; h: number }> =>
-    new Promise((resolve, reject) => {
-        const img = new Image();
-        img.onload = () => resolve({ w: img.naturalWidth, h: img.naturalHeight });
-        img.onerror = () => reject(new Error("Không đọc được kích thước ảnh"));
-        img.src = url;
-    });
-
-// null khi tải lỗi (file bị xóa khỏi server, mạng chập chờn...) — nơi gọi tự
-// fallback (chữ ký -> tick √, ảnh minh chứng -> bỏ qua ảnh đó) chứ không chặn
-// cả việc xuất Word vì 1 ảnh lỗi.
-const taiAnhTheoUrl = async (url: string, caoToiDa: number, rongToiDa: number): Promise<AnhDaTai | null> => {
-    try {
-        const [data, kichThuoc] = await Promise.all([
-            // cache: "no-store" — tránh trường hợp trình duyệt tái dùng response
-            // đã cache từ 1 lần tải ảnh trước đó qua thẻ <img> (request "no-cors",
-            // không cần header CORS); fetch() ("cors") dùng lại cache đó sẽ luôn bị
-            // chặn vì thiếu Access-Control-Allow-Origin dù server đã bật CORS.
-            fetch(url, { cache: "no-store" }).then(r => {
-                if (!r.ok) throw new Error(`HTTP ${r.status}`);
-                return r.arrayBuffer();
-            }),
-            layKichThuocAnh(url),
-        ]);
-        const tiLe = Math.min(caoToiDa / kichThuoc.h, rongToiDa / kichThuoc.w, 1);
-        return {
-            data,
-            type: loaiAnhTheoDuongDan(url),
-            cao: Math.round(kichThuoc.h * tiLe),
-            rong: Math.round(kichThuoc.w * tiLe),
-        };
-    } catch (err) {
-        // Lỗi thường gặp: ảnh cũ bị đóng băng domain sai trong HTML đã lưu
-        // (host nội bộ/thiếu prefix reverse-proxy — xem
-        // migration_fix_duong_dan_anh_ckeditor.sql), ảnh đã bị xóa khỏi
-        // server, hoặc mạng chập chờn. Log ra để dev/BA tra được vì sao 1 ảnh
-        // cụ thể không lên được Word thay vì biến mất trong im lặng.
-        console.warn(`[xuatWordPhieu2] Không tải được ảnh, bỏ qua: ${url}`, err);
-        return null;
-    }
-};
-
-// Khớp .chu-ky-anh { max-height: 70px } trên màn hình, kèm chặn rộng tối đa
-// để chữ ký ngang quá khổ không đè sang cột bên cạnh.
-const ANH_KY_CAO_TOI_DA = 70;
-const ANH_KY_RONG_TOI_DA = 150;
-
-const layAnhChuKy = (duongDanChuKy?: string): Promise<AnhDaTai | null> =>
-    !duongDanChuKy ? Promise.resolve(null) : taiAnhTheoUrl(`${ApiRootV2}${duongDanChuKy}`, ANH_KY_CAO_TOI_DA, ANH_KY_RONG_TOI_DA);
-
-// Ảnh minh chứng dán trong ghi chú (TinyMCE) — chụp hiện trường nên có thể
-// rất lớn. Xếp tối đa 2 ảnh/hàng (xem taoBangAnhMinhChung): ảnh đi cặp bị
-// chặn nhỏ (~1/2 khổ trang, chặn cả chiều cao để 2 ảnh cùng hàng không lệch
-// nhau quá), ảnh LẺ cuối cùng nằm riêng 1 hàng nên được to hơn. Chỉ thu nhỏ,
-// KHÔNG phóng to ảnh nhỏ — xem tiLe = min(..., 1) ở coGianAnh.
-const ANH_MINH_CHUNG_CAO_TOI_DA = 500;
-const ANH_MINH_CHUNG_RONG_TOI_DA = 500;
-const ANH_MINH_CHUNG_CAP_CAO_TOI_DA = 220;
-const ANH_MINH_CHUNG_CAP_RONG_TOI_DA = 280;
 
 // Chiều rộng vùng in (RONG_VUNG_IN) chia đôi cho 2 cột bảng ảnh; khai báo
 // columnWidths để ô gộp (columnSpan: 2) của ảnh lẻ vẫn đúng lưới kể cả khi
 // bảng chỉ có 1 hàng đó (phiếu có 1 ảnh).
 const RONG_COT_ANH_MINH_CHUNG = Math.floor(RONG_VUNG_IN / 2);
-
-// src trong HTML ghi chú đã là URL TUYỆT ĐỐI (ghép sẵn ApiRootV2 lúc upload —
-// xem TinyMceModal.tsx/TinyMceInline.tsx), khác với duongDanChuKy (tương đối)
-// ở trên nên gọi thẳng taiAnhTheoUrl, không ghép thêm ApiRootV2. Giữ kích
-// thước GỐC lúc tải — chỉ biết ảnh đi cặp hay nằm riêng sau khi gom đủ danh
-// sách, lúc đó mới coGianAnh theo vị trí.
-const layAnhMinhChung = (url: string): Promise<AnhDaTai | null> =>
-    taiAnhTheoUrl(url, Infinity, Infinity);
-
-const coGianAnh = (anh: AnhDaTai, caoToiDa: number, rongToiDa: number): AnhDaTai => {
-    const tiLe = Math.min(caoToiDa / anh.cao, rongToiDa / anh.rong, 1);
-    return { ...anh, cao: Math.round(anh.cao * tiLe), rong: Math.round(anh.rong * tiLe) };
-};
 
 // 1 ô ảnh minh chứng: ảnh + chú thích "Hình i" bên dưới. Căn đáy để chú
 // thích 2 ảnh cùng hàng (khác chiều cao) vẫn thẳng hàng nhau.
@@ -384,17 +249,6 @@ const taoBangAnhMinhChung = (dsAnh: AnhDaTai[]): Table => {
         borders: TableBorders.NONE,
         rows: hang,
     });
-};
-
-// Lấy DANH SÁCH src ảnh trong 1 đoạn HTML ghi chú, ĐÚNG THỨ TỰ xuất hiện —
-// dùng để gom toàn bộ ảnh minh chứng của phiếu (nhiều ô ghi chú khác nhau)
-// theo đúng thứ tự đọc trên phiếu trước khi tải + chèn vào cuối file Word.
-const layDanhSachAnhTrongHtml = (html?: string): string[] => {
-    if (!html || !html.trim()) return [];
-    const doc = new DOMParser().parseFromString(html, "text/html");
-    return Array.from(doc.querySelectorAll("img"))
-        .map(img => img.getAttribute("src"))
-        .filter((src): src is string => !!src);
 };
 
 // "Quảng Ngãi, ngày ... tháng ... năm ..." trên chuKyTable — lấy theo ngày
@@ -525,9 +379,25 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
     const soBuoc = Math.max(chuKy.length, 1);
     const rongCot = Math.round(100 / soBuoc);
 
-    // Tải trước ảnh chữ ký thật của từng bước ĐÃ DUYỆT (nếu có) — phải xong
-    // trước khi build bảng vì docx cần width/height cụ thể lúc tạo ImageRun.
-    const anhChuKyDanhSach = await Promise.all(chuKy.map(b => layAnhChuKy(b.duongDanChuKy)));
+    // Ảnh minh chứng dán trong ghi chú "Không đạt" + Ý kiến nhà thầu: gom src
+    // ĐÚNG THỨ TỰ xuất hiện trên phiếu — theo từng tiêu chí trong bảng đánh
+    // giá (đúng thứ tự danhSachTieuChi ở trên), rồi tới Ý kiến/phản hồi của
+    // nhà thầu (xuất hiện SAU bảng, TRƯỚC chữ ký) — sau đó xếp tối đa 2
+    // ảnh/hàng xuống cuối văn bản, đúng thứ tự đã gom (xem taoBangAnhMinhChung).
+    const anhMinhChungSrc: string[] = [
+        ...danhSachTieuChi.flatMap(tc => layDanhSachAnhTrongHtml(tc.ghiChuHtml)),
+        ...layDanhSachAnhTrongHtml(yKienHtml),
+    ];
+
+    // Tải trước TOÀN BỘ ảnh (chữ ký thật của từng bước ĐÃ DUYỆT, ảnh minh
+    // chứng, logo) SONG SONG — phải xong trước khi build bảng vì docx cần
+    // width/height cụ thể lúc tạo ImageRun.
+    const [anhChuKyDanhSach, anhMinhChungKetQua, logoBuffer] = await Promise.all([
+        Promise.all(chuKy.map(b => layAnhChuKy(b.duongDanChuKy))),
+        Promise.all(anhMinhChungSrc.map(layAnhMinhChung)),
+        fetch(logoPdf).then(r => r.arrayBuffer()),
+    ]);
+    const anhMinhChungDaTai = anhMinhChungKetQua.filter((anh): anh is AnhDaTai => anh !== null);
 
     // Đã ký: ưu tiên ảnh chữ ký thật (đang sử dụng tại thời điểm ký), fallback
     // tick xanh (✓) khi không có ảnh (nhà thầu, hoặc nội bộ chưa từng upload)
@@ -577,18 +447,7 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
         ],
     });
 
-    // ---- Ảnh minh chứng dán trong ghi chú "Không đạt" + Ý kiến nhà thầu ----
-    // Gom src ĐÚNG THỨ TỰ xuất hiện trên phiếu: theo từng tiêu chí trong bảng
-    // đánh giá (đúng thứ tự danhSachTieuChi ở trên), rồi tới Ý kiến/phản hồi
-    // của nhà thầu (xuất hiện SAU bảng, TRƯỚC chữ ký) — sau đó xếp tối đa 2
-    // ảnh/hàng xuống cuối văn bản, đúng thứ tự đã gom (xem taoBangAnhMinhChung).
-    const anhMinhChungSrc: string[] = [
-        ...danhSachTieuChi.flatMap(tc => layDanhSachAnhTrongHtml(tc.ghiChuHtml)),
-        ...layDanhSachAnhTrongHtml(yKienHtml),
-    ];
-    const anhMinhChungDaTai = (await Promise.all(anhMinhChungSrc.map(layAnhMinhChung)))
-        .filter((anh): anh is AnhDaTai => anh !== null);
-
+    // ---- Ảnh minh chứng ----
     // Khối ảnh luôn bắt đầu ở trang mới, tách hẳn khỏi phần biểu mẫu phía trên.
     const khoiAnhMinhChung: (Paragraph | Table)[] =
         anhMinhChungDaTai.length > 0
@@ -599,7 +458,6 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
             : [];
 
     // ---- Header (logo + thông tin biểu mẫu) ----
-    const logoBuffer = await fetch(logoPdf).then(r => r.arrayBuffer());
     const headerTable = new Table({
         width: { size: 100, type: WidthType.PERCENTAGE },
         borders: TableBorders.NONE,
@@ -684,7 +542,7 @@ const taoBlobDocxPhieu2 = async (params: XuatWordPhieu2Params): Promise<{ blob: 
     const footer = new Footer({
         children: [
             new Paragraph({
-                alignment: AlignmentType.RIGHT,
+                alignment: AlignmentType.CENTER,
                 children: [
                     oChu("Trang "),
                     new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.CURRENT] }),

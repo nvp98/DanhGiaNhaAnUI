@@ -1,7 +1,7 @@
 import { Button, DatePicker, InputNumber, Popconfirm, Select, Tag } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useMemo, useState } from "react";
-import { FaFileWord, FaPlus, FaTimes } from "react-icons/fa";
+import { FaPlus, FaTimes } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -10,6 +10,7 @@ import {
     BangCoDinhTable,
     DoanBuilder,
     DoanBuilderItem,
+    NutXuatFile,
     PhieuActions,
     PhieuHeader,
     PhieuInputCard,
@@ -38,7 +39,7 @@ import {
 
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
-import xuatWordPhieu4 from "../../utils/xuatWordPhieu4";
+import { quayVeDanhSach } from "../../utils/giuKhiQuayLai";
 
 import "./Phieu4FormPage.scss";
 
@@ -89,7 +90,6 @@ const Phieu4FormPage: React.FC = () => {
     const [denNgay, setDenNgay] = useState<dayjs.Dayjs | null>(null);
     const [nhaThauIds, setNhaThauIds] = useState<number[]>([]);
     const [nhaThauMoiId, setNhaThauMoiId] = useState<number | undefined>(undefined);
-    const [dangXuatWord, setDangXuatWord] = useState(false);
     // Đoạn thời gian & địa điểm — build mode (form tạo mới, chưa có phiếu),
     // khóa theo nhaThauId đang chọn, key tạm; xem DoanBuilder.
     const [doanTheoNhaThauMoi, setDoanTheoNhaThauMoi] = useState<Record<number, DoanBuilderItem[]>>({});
@@ -339,59 +339,55 @@ const Phieu4FormPage: React.FC = () => {
         try {
             await xoaPhieu4(phieuId!).unwrap();
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã xóa phiếu tổng hợp", messageNotify: "" }));
-            navigator("/phieu4");
+            // Mở phiếu thẳng từ danh sách -> lùi lịch sử để danh sách giữ form tìm kiếm.
+            quayVeDanhSach(navigator, "phieu4", "/phieu4");
         } catch (error: any) {
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Xóa thất bại", messageNotify: "" }));
         }
     };
 
-    const xuLyXuatWord = async () => {
-        setDangXuatWord(true);
-        try {
-            // Ghi đè dòng trọng số bằng số vừa tính ở FE (tinhDiemTrongSo) —
-            // tránh xuất ra số cũ đã lưu trong DB nếu chưa kịp "Lưu thay đổi"
-            // sau lần "Làm mới" gần nhất (xem renderOGiaTri).
-            const bang2ChoXuatWord = bang2 && dongTrongSo
-                ? {
-                    ...bang2,
-                    dong: bang2.dong.map(d =>
-                        d.id === dongTrongSo.id
-                            ? {
-                                ...d,
-                                giaTri: cotNhaThau.map(c => ({
-                                    id: d.giaTri.find(g => g.nhaThauId === c.nhaThauId)?.id ?? 0,
-                                    dongId: d.id,
-                                    nhaThauId: c.nhaThauId,
-                                    giaTri: tinhDiemTrongSo(c.nhaThauId) ?? undefined,
-                                    chinhSuaThuCong: false,
-                                })),
-                            }
-                            : d
-                    ),
-                }
-                : bang2;
+    // Import động — thư viện docx chỉ tải khi bấm nút, xem NutXuatFile.
+    const xuatWord = async () => {
+        // Ghi đè dòng trọng số bằng số vừa tính ở FE (tinhDiemTrongSo) —
+        // tránh xuất ra số cũ đã lưu trong DB nếu chưa kịp "Lưu thay đổi"
+        // sau lần "Làm mới" gần nhất (xem renderOGiaTri).
+        const bang2ChoXuatWord = bang2 && dongTrongSo
+            ? {
+                ...bang2,
+                dong: bang2.dong.map(d =>
+                    d.id === dongTrongSo.id
+                        ? {
+                            ...d,
+                            giaTri: cotNhaThau.map(c => ({
+                                id: d.giaTri.find(g => g.nhaThauId === c.nhaThauId)?.id ?? 0,
+                                dongId: d.id,
+                                nhaThauId: c.nhaThauId,
+                                giaTri: tinhDiemTrongSo(c.nhaThauId) ?? undefined,
+                                chinhSuaThuCong: false,
+                            })),
+                        }
+                        : d
+                ),
+            }
+            : bang2;
 
-            await xuatWordPhieu4({
-                soHieu: phieu?.soHieu,
-                ngayLap: phieu?.ngayTao,
-                tuNgay: phieu?.tuNgay,
-                denNgay: phieu?.denNgay,
-                cotNhaThau: cotNhaThau.map(c => ({ nhaThauId: c.nhaThauId, ten: tenNhaThau(c.nhaThauId) })),
-                bang1,
-                bang2: bang2ChoXuatWord,
-                chuKy: tienDoKy.map(b => ({
-                    tenBuoc: b.tenBuoc,
-                    buocThuTu: b.buocThuTu,
-                    trangThai: b.trangThai,
-                    ghiChu: b.ghiChu,
-                    ngayKy: b.ngayKy,
-                })),
-            });
-        } catch (error: any) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Word thất bại", messageNotify: "" }));
-        } finally {
-            setDangXuatWord(false);
-        }
+        const { default: xuatWordPhieu4 } = await import("../../utils/xuatWordPhieu4");
+        await xuatWordPhieu4({
+            soHieu: phieu?.soHieu,
+            ngayLap: phieu?.ngayTao,
+            tuNgay: phieu?.tuNgay,
+            denNgay: phieu?.denNgay,
+            cotNhaThau: cotNhaThau.map(c => ({ nhaThauId: c.nhaThauId, ten: tenNhaThau(c.nhaThauId) })),
+            bang1,
+            bang2: bang2ChoXuatWord,
+            chuKy: tienDoKy.map(b => ({
+                tenBuoc: b.tenBuoc,
+                buocThuTu: b.buocThuTu,
+                trangThai: b.trangThai,
+                ghiChu: b.ghiChu,
+                ngayKy: b.ngayKy,
+            })),
+        });
     };
 
     // ============================================================
@@ -408,18 +404,7 @@ const Phieu4FormPage: React.FC = () => {
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}
-                extraButtons={
-                    !laTaoMoi && (
-                        <Button
-                            className="no-print"
-                            icon={<FaFileWord />}
-                            loading={dangXuatWord}
-                            onClick={xuLyXuatWord}
-                        >
-                            Xuất Word
-                        </Button>
-                    )
-                }
+                extraButtons={!laTaoMoi && <NutXuatFile xuatWord={xuatWord} />}
             />
 
             <PhieuInputCard title="Thông tin phiếu">

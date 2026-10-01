@@ -32,6 +32,7 @@ import Phieu3DanhSachPage from './pages/Phieu3/Phieu3DanhSachPage'
 import Phieu3FormPage from './pages/Phieu3/Phieu3FormPage'
 import Phieu4DanhSachPage from './pages/Phieu4/Phieu4DanhSachPage'
 import Phieu4FormPage from './pages/Phieu4/Phieu4FormPage'
+import { useTheoDoiChuyenTrang } from './utils/giuKhiQuayLai'
 
 
 
@@ -42,6 +43,10 @@ function App() {
   const notify = useSelector((state: RootType) => state.notify)
   const [messageApi, contextHolder] = message.useMessage();
   const dispatch = useDispatch();
+
+  // Đếm số lần chuyển trang — để trang danh sách phiếu giữ form tìm kiếm khi
+  // quay lại ngay từ phiếu (xem utils/giuKhiQuayLai.ts).
+  useTheoDoiChuyenTrang();
 
   const callMessage = ( type: MessageType, content: string) => {
     messageApi.open({
