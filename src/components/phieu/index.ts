@@ -12,3 +12,4 @@ export * from "./PhieuListHeader";
 export * from "./PhieuFilterBar";
 export * from "./PhieuInputCard";
 export * from "./GhiChuHtml";
+export * from "./NutXuatFile";

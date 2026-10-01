@@ -1,6 +1,6 @@
 import { Button, Checkbox, DatePicker, Input, Popconfirm, Select, Table, TableColumnsType, Tag } from "antd";
 import { Dayjs } from "dayjs";
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import { FaClipboardCheck, FaSearch, FaTrash } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
@@ -13,6 +13,7 @@ import { useDanhSachPhongBanQuery } from "../../services/phongBanApiV2";
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
 import { PhieuListHeader } from "../../components/phieu";
+import { useGiuKhiQuayLai } from "../../utils/giuKhiQuayLai";
 
 const { RangePicker } = DatePicker;
 
@@ -41,6 +42,10 @@ interface BoLocDaApDung {
 
 const BO_LOC_MAC_DINH: BoLocDaApDung = { page: 1, pageSize: 10 };
 
+// Khóa trang cho useGiuKhiQuayLai — trùng với khóa quayVeDanhSach dùng ở
+// Phieu1FormPage.tsx khi xóa phiếu.
+const TRANG = "phieu1";
+
 const Phieu1DanhSachPage: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
     const dispatch = useDispatch();
@@ -68,17 +73,19 @@ const Phieu1DanhSachPage: React.FC = () => {
     // Ô nhập (draft) — chỉ áp dụng thật (gọi API) khi bấm "Tìm", tránh gọi
     // API liên tục khi đang gõ/chọn dở — kể cả các Select vốn trước đây lọc
     // ngay khi đổi, nay đồng bộ chung 1 kiểu tương tác với các trường mới.
-    const [nhapBepAnId, setNhapBepAnId] = useState<number | undefined>(undefined);
-    const [nhapNhaThauId, setNhapNhaThauId] = useState<number | undefined>(undefined);
-    const [nhapPhongBanId, setNhapPhongBanId] = useState<number | undefined>(undefined);
-    const [nhapTrangThai, setNhapTrangThai] = useState<string | undefined>(undefined);
-    const [nhapTuKhoa, setNhapTuKhoa] = useState("");
-    const [nhapKhoangNgay, setNhapKhoangNgay] = useState<[Dayjs | null, Dayjs | null] | null>(null);
-    const [nhapChiCuaToi, setNhapChiCuaToi] = useState(false);
+    // useGiuKhiQuayLai: giữ nguyên form + trang đang xem khi mở 1 phiếu rồi
+    // quay lại ngay, xem utils/giuKhiQuayLai.ts.
+    const [nhapBepAnId, setNhapBepAnId] = useGiuKhiQuayLai<number | undefined>(TRANG, "bepAnId", undefined);
+    const [nhapNhaThauId, setNhapNhaThauId] = useGiuKhiQuayLai<number | undefined>(TRANG, "nhaThauId", undefined);
+    const [nhapPhongBanId, setNhapPhongBanId] = useGiuKhiQuayLai<number | undefined>(TRANG, "phongBanId", undefined);
+    const [nhapTrangThai, setNhapTrangThai] = useGiuKhiQuayLai<string | undefined>(TRANG, "trangThai", undefined);
+    const [nhapTuKhoa, setNhapTuKhoa] = useGiuKhiQuayLai(TRANG, "tuKhoa", "");
+    const [nhapKhoangNgay, setNhapKhoangNgay] = useGiuKhiQuayLai<[Dayjs | null, Dayjs | null] | null>(TRANG, "khoangNgay", null);
+    const [nhapChiCuaToi, setNhapChiCuaToi] = useGiuKhiQuayLai(TRANG, "chiCuaToi", false);
 
     // Bộ lọc ĐÃ ÁP DỤNG — truyền thẳng vào query, chỉ đổi khi bấm "Tìm" hoặc
     // đổi trang.
-    const [boLoc, setBoLoc] = useState<BoLocDaApDung>(BO_LOC_MAC_DINH);
+    const [boLoc, setBoLoc] = useGiuKhiQuayLai<BoLocDaApDung>(TRANG, "boLoc", BO_LOC_MAC_DINH);
 
     const xuLyTim = () => {
         setBoLoc({

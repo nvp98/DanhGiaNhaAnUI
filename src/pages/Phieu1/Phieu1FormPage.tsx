@@ -8,13 +8,14 @@ import {
 } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FaEdit, FaFileWord, FaImage, FaPlus, FaTrash } from "react-icons/fa";
+import { FaEdit, FaImage, FaPlus, FaTrash } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
 import LayoutV2Component from "../../components/LayoutV2Component";
 import {
     GhiChuHtml,
+    NutXuatFile,
     PhieuActions,
     PhieuHeader,
     PhieuSignatures,
@@ -48,7 +49,7 @@ import { useDanhSachTieuChiQuery } from "../../services/tieuChiApi";
 
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
-import xuatWordPhieu1 from "../../utils/xuatWordPhieu1";
+import { quayVeDanhSach } from "../../utils/giuKhiQuayLai";
 
 import "./Phieu1FormPage.scss";
 
@@ -170,7 +171,6 @@ const Phieu1FormPage: React.FC = () => {
     const [ketLuanGhiChu, setKetLuanGhiChu] = useState("");
     const [danhSachDong, setDanhSachDong] = useState<DongChecklist[]>([]);
     const [daKhoiTao, setDaKhoiTao] = useState(false);
-    const [dangXuatWord, setDangXuatWord] = useState(false);
 
     // Modal soạn TinyMCE dùng chung cho ghi chú từng dòng checklist VÀ ghi chú
     // Kết luận (duy nhất/phiếu) — xem moModalGhiChuDong/moModalKetLuan.
@@ -501,7 +501,8 @@ const Phieu1FormPage: React.FC = () => {
                     messageNotify: "",
                 })
             );
-            navigator("/phieu1");
+            // Mở phiếu thẳng từ danh sách -> lùi lịch sử để danh sách giữ form tìm kiếm.
+            quayVeDanhSach(navigator, "phieu1", "/phieu1");
         } catch (error: any) {
             dispatch(
                 setNotify({
@@ -588,16 +589,9 @@ const Phieu1FormPage: React.FC = () => {
         };
     };
 
-    const xuLyXuatWord = async () => {
-        setDangXuatWord(true);
-        try {
-            await xuatWordPhieu1(layThamSoXuatPhieu1());
-        } catch (error: any) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Word thất bại", messageNotify: "" }));
-        } finally {
-            setDangXuatWord(false);
-        }
-    };
+    // Import động — thư viện docx/pdfmake chỉ tải khi bấm nút, xem NutXuatFile.
+    const xuatWord = async () => (await import("../../utils/xuatWordPhieu1")).default(layThamSoXuatPhieu1());
+    const xuatPdf = async () => (await import("../../utils/pdf/xuatPdfPhieu1")).default(layThamSoXuatPhieu1());
 
     const ketLuanTamThoi = tinhKetLuanTamThoi(danhSachDong);
     const tenBepAnHienTai = bepAnId
@@ -674,18 +668,7 @@ const Phieu1FormPage: React.FC = () => {
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}
-                extraButtons={
-                    !laTaoMoi && (
-                        <Button
-                            className="no-print"
-                            icon={<FaFileWord />}
-                            loading={dangXuatWord}
-                            onClick={xuLyXuatWord}
-                        >
-                            Xuất Word
-                        </Button>
-                    )
-                }
+                extraButtons={!laTaoMoi && <NutXuatFile xuatWord={xuatWord} xuatPdf={xuatPdf} />}
             />
 
             {/* 2. FORM THÔNG TIN NHẬP LIỆU (NO-PRINT) */}

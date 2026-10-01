@@ -1,7 +1,7 @@
 import { Button, InputNumber, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
-import { FaEdit, FaFileWord } from "react-icons/fa";
+import { FaEdit } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -10,6 +10,7 @@ import {
     DoanBuilder,
     DoanBuilderItem,
     GhiChuHtml,
+    NutXuatFile,
     PhieuActions,
     PhieuHeader,
     PhieuInputCard,
@@ -41,7 +42,7 @@ import { useDanhSachPhongBanQuery } from "../../services/phongBanApiV2";
 
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
-import xuatWordPhieu3 from "../../utils/xuatWordPhieu3";
+import { quayVeDanhSach } from "../../utils/giuKhiQuayLai";
 
 import "./Phieu3FormPage.scss";
 
@@ -155,7 +156,6 @@ const Phieu3FormPage: React.FC = () => {
     // Modal soạn Ý kiến BP.QLTT — bấm icon sửa để mở, thay vì hiện thẳng khung
     // TinyMCE to trên trang.
     const [modalYKienOpen, setModalYKienOpen] = useState(false);
-    const [dangXuatWord, setDangXuatWord] = useState(false);
     // Ô "Đa dạng thực đơn" (TC3, Bảng 2) — không có nguồn tự động ở CẢ 2 dòng
     // (P.ĐN lẫn P.ATMT, xem Phieu3Service.TinhLaiBang2Async) nên vẫn cho nhập
     // tay, khóa theo PhongBanId, chỉ chứa ô người dùng vừa sửa (chưa lưu).
@@ -404,50 +404,46 @@ const Phieu3FormPage: React.FC = () => {
         try {
             await xoaPhieu3(phieuId!).unwrap();
             dispatch(setNotify({ typeNotify: "success", titleNotify: "Đã xóa báo cáo", messageNotify: "" }));
-            navigator("/phieu3");
+            // Mở phiếu thẳng từ danh sách -> lùi lịch sử để danh sách giữ form tìm kiếm.
+            quayVeDanhSach(navigator, "phieu3", "/phieu3");
         } catch (error: any) {
             dispatch(setNotify({ typeNotify: "error", titleNotify: error?.data?.message || "Xóa báo cáo thất bại", messageNotify: "" }));
         }
     };
 
-    const xuLyXuatWord = async () => {
-        setDangXuatWord(true);
-        try {
-            await xuatWordPhieu3({
-                soHieu: phieu?.soHieu,
-                ngayLap: phieu?.ngayTao,
-                tenNhaThau: tenNhaThau(nhaThauId),
-                thang,
-                nam,
-                dsSoHieuPhieu2: dsSoHieuPhieu2.map(p => p.label),
-                canCuPhieu1: canCuPhieu1.map(({ phongBanId, danhSachSoHieu }) => ({
-                    tenPhongBan: tenPhongBan(phongBanId),
-                    danhSachSoHieu: danhSachSoHieu.map(d => d.soHieu),
-                })),
-                bang1,
-                bang2: bang2.map(dong => ({
-                    tenPhongBan: tenPhongBan(dong.phongBanId),
-                    giaTriTheoTieuChi: BANG2_COT_TIEU_CHI.map(cot =>
-                        // TC3 đang sửa dở (chưa lưu) vẫn phải xuất đúng giá trị mới gõ.
-                        cot.key === "TC3" && dong.phongBanId in suaDaDangThucDon
-                            ? suaDaDangThucDon[dong.phongBanId] ?? undefined
-                            : dong.giaTri.find(g => g.maTieuChi === cot.key)?.giaTri
-                    ),
-                })),
-                bang2CotTieuChi: BANG2_COT_TIEU_CHI.map(cot => cot.label),
-                yKienHtml: yKien,
-                chuKy: tienDoKy.map(b => ({
-                    tenBuoc: b.tenBuoc,
-                    trangThai: b.trangThai,
-                    ghiChu: b.ghiChu,
-                    ngayKy: b.ngayKy,
-                })),
-            });
-        } catch (error: any) {
-            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Word thất bại", messageNotify: "" }));
-        } finally {
-            setDangXuatWord(false);
-        }
+    // Import động — thư viện docx chỉ tải khi bấm nút, xem NutXuatFile.
+    const xuatWord = async () => {
+        const { default: xuatWordPhieu3 } = await import("../../utils/xuatWordPhieu3");
+        await xuatWordPhieu3({
+            soHieu: phieu?.soHieu,
+            ngayLap: phieu?.ngayTao,
+            tenNhaThau: tenNhaThau(nhaThauId),
+            thang,
+            nam,
+            dsSoHieuPhieu2: dsSoHieuPhieu2.map(p => p.label),
+            canCuPhieu1: canCuPhieu1.map(({ phongBanId, danhSachSoHieu }) => ({
+                tenPhongBan: tenPhongBan(phongBanId),
+                danhSachSoHieu: danhSachSoHieu.map(d => d.soHieu),
+            })),
+            bang1,
+            bang2: bang2.map(dong => ({
+                tenPhongBan: tenPhongBan(dong.phongBanId),
+                giaTriTheoTieuChi: BANG2_COT_TIEU_CHI.map(cot =>
+                    // TC3 đang sửa dở (chưa lưu) vẫn phải xuất đúng giá trị mới gõ.
+                    cot.key === "TC3" && dong.phongBanId in suaDaDangThucDon
+                        ? suaDaDangThucDon[dong.phongBanId] ?? undefined
+                        : dong.giaTri.find(g => g.maTieuChi === cot.key)?.giaTri
+                ),
+            })),
+            bang2CotTieuChi: BANG2_COT_TIEU_CHI.map(cot => cot.label),
+            yKienHtml: yKien,
+            chuKy: tienDoKy.map(b => ({
+                tenBuoc: b.tenBuoc,
+                trangThai: b.trangThai,
+                ghiChu: b.ghiChu,
+                ngayKy: b.ngayKy,
+            })),
+        });
     };
 
     // Định dạng 1 giá trị Bảng 1 theo đúng kiểu hiển thị của dòng (số nguyên
@@ -543,18 +539,7 @@ const Phieu3FormPage: React.FC = () => {
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}
-                extraButtons={
-                    !laTaoMoi && (
-                        <Button
-                            className="no-print"
-                            icon={<FaFileWord />}
-                            loading={dangXuatWord}
-                            onClick={xuLyXuatWord}
-                        >
-                            Xuất Word
-                        </Button>
-                    )
-                }
+                extraButtons={!laTaoMoi && <NutXuatFile xuatWord={xuatWord} />}
             />
 
             {/* 2. FORM THÔNG TIN NHẬP LIỆU (NO-PRINT) — chỉ chọn được lúc tạo mới */}

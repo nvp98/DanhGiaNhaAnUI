@@ -134,7 +134,6 @@ const CotChuKy: React.FC<{
             onDaDongBo?.();
         }
     };
-console.log(buoc);
     return (
         <div className="chu-ky-block">
             <div className="chu-ky-title">{buoc.tenBuoc}</div>
