@@ -24,14 +24,36 @@ export const TinyMceModal: React.FC<TinyMceModalProps> = ({
 }) => {
     const editorRef = useRef<any>(null);
     const [content, setContent] = useState(initialValue);
+    const [dangLuu, setDangLuu] = useState(false);
 
     useEffect(() => {
         setContent(initialValue || "");
     }, [initialValue, open]);
 
-    const handleSave = () => {
-        const value = editorRef.current ? editorRef.current.getContent() : content;
-        onSave(value);
+    // Phải CHỜ upload ảnh xong mới lấy nội dung: ảnh chưa upload (còn ở dạng
+    // blob:) bị getContent() serialize thành base64 của ẢNH GỐC chưa nén —
+    // mỗi ảnh vài MB nằm thẳng trong ghi chú, GET phiếu nặng hàng chục MB.
+    const handleSave = async () => {
+        const editor = editorRef.current;
+        if (!editor) {
+            onSave(content);
+            return;
+        }
+
+        setDangLuu(true);
+        try {
+            const ketQuaUpload: { status: boolean }[] = await editor.uploadImages();
+            const value: string = editor.getContent();
+            if (ketQuaUpload.some(x => !x.status) || /src="(data:image|blob:)/i.test(value)) {
+                message.error("Có ảnh chưa tải lên được — vui lòng xóa ảnh lỗi và chèn lại trước khi lưu.");
+                return;
+            }
+            onSave(value);
+        } catch {
+            message.error("Tải ảnh lên thất bại — vui lòng thử lại.");
+        } finally {
+            setDangLuu(false);
+        }
     };
 
     const imagesUploadHandler = (blobInfo: any, progress: (percent: number) => void): Promise<string> => {
@@ -107,10 +129,10 @@ export const TinyMceModal: React.FC<TinyMceModalProps> = ({
             keyboard={false}
             onCancel={onCancel}
             footer={[
-                <Button key="cancel" onClick={onCancel}>
+                <Button key="cancel" onClick={onCancel} disabled={dangLuu}>
                     Hủy
                 </Button>,
-                <Button key="save" type="primary" onClick={handleSave}>
+                <Button key="save" type="primary" loading={dangLuu} onClick={handleSave}>
                     Xác nhận & Lưu ghi chú
                 </Button>,
             ]}

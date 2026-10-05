@@ -274,7 +274,8 @@ const Phieu3FormPage: React.FC = () => {
     // không lặp lại cả chuỗi số hiệu đầy đủ (đã có sẵn "Bảng đánh giá số" dẫn
     // trước). Giữ kèm "id" để bấm số hiệu điều hướng thẳng tới phiếu chi tiết
     // (xem renderDsClickable).
-    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay.map(p => ({ id: p.id, label: p.soHieu.split("/")[0] }));
+    // Phiếu 2/1 ĐÃ DUYỆT luôn có số hiệu (chỉ cấp khi duyệt) — "?? ''" chỉ để phòng thủ.
+    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay.map(p => ({ id: p.id, label: (p.soHieu ?? "").split("/")[0] }));
 
     // Map lồng phongBanId -> (số hiệu -> id Phiếu 1) — giữ kèm id để bấm số
     // hiệu điều hướng thẳng tới phiếu chi tiết, cùng cách lấy nhãn với
@@ -283,7 +284,7 @@ const Phieu3FormPage: React.FC = () => {
     // nhãn (hiếm gặp) thì giữ phiếu ĐẦU TIÊN gặp được.
     const phieu1TheoPhongBan = new Map<number, Map<string, number>>();
     danhSachPhieu1ThangNay.forEach(p => {
-        const nhan = p.soHieu.split("/")[0];
+        const nhan = (p.soHieu ?? "").split("/")[0];
         if (!phieu1TheoPhongBan.has(p.phongBanId)) {
             phieu1TheoPhongBan.set(p.phongBanId, new Map());
         }

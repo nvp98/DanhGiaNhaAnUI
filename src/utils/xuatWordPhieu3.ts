@@ -423,7 +423,7 @@ export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void
             new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                    oChu("Trang "),
+                    oChu(""),
                     new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.CURRENT] }),
                     oChu("/"),
                     new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.TOTAL_PAGES] }),

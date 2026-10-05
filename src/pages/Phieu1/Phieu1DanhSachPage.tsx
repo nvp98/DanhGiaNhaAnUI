@@ -134,7 +134,8 @@ const Phieu1DanhSachPage: React.FC = () => {
             dataIndex: 'soHieu',
             key: 'soHieu',
             width: 400,
-            render: (soHieu, record) => <Link to={`/phieu1/${record.id}`} className="text-[#004aad] font-medium">{soHieu}</Link>,
+            // Số hiệu chỉ cấp khi hoàn tất ký duyệt — phiếu chưa duyệt hiện nhãn thay thế (vẫn bấm vào được)
+            render: (soHieu, record) => <Link to={`/phieu1/${record.id}`} className="text-[#004aad] font-medium">{soHieu || <span className="italic text-[#004aad]">Chưa cấp số</span>}</Link>,
         },
         {
             title: 'Ngày kiểm tra',

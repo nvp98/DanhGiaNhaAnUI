@@ -477,7 +477,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
             new Paragraph({
                 alignment: AlignmentType.CENTER,
                 children: [
-                    oChu("Trang "),
+                    oChu(""),
                     new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.CURRENT] }),
                     oChu("/"),
                     new TextRun({ font: FONT, size: CO_CHU, children: [PageNumber.TOTAL_PAGES] }),
