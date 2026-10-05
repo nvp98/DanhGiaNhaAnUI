@@ -525,7 +525,7 @@ const Phieu2FormPage: React.FC = () => {
     };
 
     const layThamSoXuatPhieu2 = () => ({
-        soHieu: phieu?.soHieu,
+        soHieu: phieu?.soHieu ?? undefined,
         ngayLap: phieu?.ngayTao,
         tenNhaThau: tenNhaThau(nhaThauId),
         ngayKiemTra: thoiGianTu ? thoiGianTu.format("DD/MM/YYYY") : "........................",
@@ -622,7 +622,7 @@ const Phieu2FormPage: React.FC = () => {
                 title={
                     laTaoMoi
                         ? "Lập phiếu đánh giá chất lượng dịch vụ suất ăn"
-                        : `Phiếu đánh giá suất ăn — ${phieu?.soHieu ?? ""}`
+                        : `Phiếu đánh giá suất ăn — ${phieu?.soHieu ?? (phieu ? "Chưa cấp số (cấp khi hoàn tất ký duyệt)" : "")}`
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}

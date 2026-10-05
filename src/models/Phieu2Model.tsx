@@ -1,6 +1,7 @@
 export default interface Phieu2Model {
     id: number;
-    soHieu: string;
+    // null tới khi phiếu hoàn tất ký duyệt (DA_DUYET) mới được cấp số
+    soHieu: string | null;
     thang: number;
     nam: number;
     nhaThauId: number;

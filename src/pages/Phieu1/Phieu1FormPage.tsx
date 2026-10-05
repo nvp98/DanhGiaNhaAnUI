@@ -7,7 +7,7 @@ import {
     Tooltip,
 } from "antd";
 import dayjs from "dayjs";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { FaEdit, FaImage, FaPlus, FaTrash } from "react-icons/fa";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useParams } from "react-router-dom";
@@ -118,7 +118,7 @@ const Phieu1FormPage: React.FC = () => {
     // invalidate cache qua tag, nên nếu không ép refetch thì quay lại danh
     // sách rồi vào lại phiếu sẽ thấy dữ liệu cũ (chỉ F5 mới thấy đúng vì F5
     // xóa sạch cache).
-    const { data: chiTietPhieu, isFetching: dangTaiPhieu } = useChiTietPhieu1Query(
+    const { data: chiTietPhieu, isFetching: dangTaiPhieu, fulfilledTimeStamp: thoiDiemTaiPhieu } = useChiTietPhieu1Query(
         phieuId!,
         { skip: laTaoMoi, refetchOnMountOrArgChange: true }
     );
@@ -171,6 +171,14 @@ const Phieu1FormPage: React.FC = () => {
     const [ketLuanGhiChu, setKetLuanGhiChu] = useState("");
     const [danhSachDong, setDanhSachDong] = useState<DongChecklist[]>([]);
     const [daKhoiTao, setDaKhoiTao] = useState(false);
+    // Mốc thời gian vào trang (reset khi đổi "id") — chỉ khởi tạo form từ dữ
+    // liệu tải SAU mốc này. Có cache cũ thì lần render đầu RTK Query trả
+    // isFetching = false kèm data cũ (refetch chỉ bắt đầu sau đó), nếu dùng
+    // luôn sẽ nạp Id dòng đã lỗi thời -> lưu lại có thể làm mất chi tiết.
+    const mocVaoTrang = useRef(Date.now());
+    // Phủ cả quá trình Lưu + Gửi ký (dangGuiKy của mutation chỉ phủ bước gửi
+    // ký) — tránh bấm "Gửi ký" lần 2 khi đang lưu.
+    const [dangXuLyGuiKy, setDangXuLyGuiKy] = useState(false);
 
     // Modal soạn TinyMCE dùng chung cho ghi chú từng dòng checklist VÀ ghi chú
     // Kết luận (duy nhất/phiếu) — xem moModalGhiChuDong/moModalKetLuan.
@@ -187,6 +195,7 @@ const Phieu1FormPage: React.FC = () => {
     }, [authV2.isAuthenticated, navigator]);
 
     useEffect(() => {
+        mocVaoTrang.current = Date.now();
         setDaKhoiTao(false);
     }, [id]);
 
@@ -199,7 +208,7 @@ const Phieu1FormPage: React.FC = () => {
         // setDaKhoiTao(true) bên dưới — checklist mãi trống cho tới khi "id"
         // đổi (VD sau khi Lập phiếu xong, điều hướng sang /phieu1/{id} mới).
         if (dangTaiNhom || dangTaiTieuChiTatCa) return;
-        if (!laTaoMoi && (dangTaiPhieu || !chiTietPhieu)) return;
+        if (!laTaoMoi && (dangTaiPhieu || !chiTietPhieu || (thoiDiemTaiPhieu ?? 0) < mocVaoTrang.current)) return;
 
         const chiTietDaLuu = chiTietPhieu?.chiTiet ?? [];
         const trangThaiPhieu = chiTietPhieu?.phieu.trangThai;
@@ -293,6 +302,7 @@ const Phieu1FormPage: React.FC = () => {
         dangTaiTieuChiTatCa,
         chiTietPhieu,
         dangTaiPhieu,
+        thoiDiemTaiPhieu,
         laTaoMoi,
         daKhoiTao,
     ]);
@@ -418,7 +428,10 @@ const Phieu1FormPage: React.FC = () => {
     // LƯU & XỬ LÝ PHIẾU
     // ============================================================
 
-    const luuPhieu = async () => {
+    // Trả về true khi lưu thành công — xuLyGuiKy dựa vào đây để KHÔNG gửi ký
+    // khi lưu lỗi (trước đây lỗi bị nuốt ở đây, gửi ký vẫn chạy với dữ liệu
+    // cũ trong DB -> phiếu được duyệt mà chi tiết trống).
+    const luuPhieu = async (): Promise<boolean> => {
         if (!bepAnId || !nhaThauId) {
             dispatch(
                 setNotify({
@@ -427,7 +440,7 @@ const Phieu1FormPage: React.FC = () => {
                     messageNotify: "",
                 })
             );
-            return;
+            return false;
         }
         if (!phongBanId) {
             dispatch(
@@ -437,7 +450,7 @@ const Phieu1FormPage: React.FC = () => {
                     messageNotify: "",
                 })
             );
-            return;
+            return false;
         }
 
         const chiTiet: Phieu1ChiTietRequest[] = danhSachDong.map(d => ({
@@ -471,7 +484,17 @@ const Phieu1FormPage: React.FC = () => {
                 );
                 navigator(`/phieu1/${ketQua.phieu.id}`);
             } else {
-                await suaPhieu1({ id: phieuId!, body: payload }).unwrap();
+                const ketQua = await suaPhieu1({ id: phieuId!, body: payload }).unwrap();
+                // Nạp lại Id thật của từng dòng sau khi lưu (khớp theo thuTu —
+                // gửi lên sao lưu vậy). Không làm thì dòng mới thêm vẫn mang
+                // id rỗng ở FE, lần lưu sau backend phải xóa rồi tạo lại.
+                const theoThuTu = new Map(ketQua.chiTiet.map(ct => [ct.thuTu, ct]));
+                setDanhSachDong(ds =>
+                    ds.map(d => {
+                        const ct = theoThuTu.get(d.thuTu);
+                        return ct ? { ...d, id: ct.id, tenTieuChiSnapshot: ct.tenTieuChi } : d;
+                    })
+                );
                 dispatch(
                     setNotify({
                         typeNotify: "success",
@@ -480,6 +503,7 @@ const Phieu1FormPage: React.FC = () => {
                     })
                 );
             }
+            return true;
         } catch (error: any) {
             dispatch(
                 setNotify({
@@ -488,6 +512,7 @@ const Phieu1FormPage: React.FC = () => {
                     messageNotify: "",
                 })
             );
+            return false;
         }
     };
 
@@ -525,8 +550,11 @@ const Phieu1FormPage: React.FC = () => {
             );
             return;
         }
+        if (dangXuLyGuiKy) return;
+        setDangXuLyGuiKy(true);
         try {
-            await luuPhieu();
+            // Lưu lỗi thì dừng — luuPhieu đã tự báo lỗi.
+            if (!(await luuPhieu())) return;
             await guiKyPhieu1(phieuId!).unwrap();
             dispatch(
                 setNotify({
@@ -543,13 +571,15 @@ const Phieu1FormPage: React.FC = () => {
                     messageNotify: "",
                 })
             );
+        } finally {
+            setDangXuLyGuiKy(false);
         }
     };
 
     const layThamSoXuatPhieu1 = () => {
         const ketLuan = tinhKetLuanTamThoi(danhSachDong);
         return {
-            soHieu: phieu?.soHieu,
+            soHieu: phieu?.soHieu ?? undefined,
             ngayLap: phieu?.ngayTao,
             tenBepAn: bepAnId ? danhSachBepAn.find((b: BepAnModel) => b.id === bepAnId)?.ten ?? "" : "",
             tenNhaThau: nhaThauId ? tenNhaThau(nhaThauId) : "",
@@ -664,7 +694,7 @@ const Phieu1FormPage: React.FC = () => {
                 title={
                     laTaoMoi
                         ? "Lập phiếu kiểm tra VSATTP"
-                        : `Phiếu kiểm tra — ${phieu?.soHieu ?? ""}`
+                        : `Phiếu kiểm tra — ${phieu?.soHieu ?? (phieu ? "Chưa cấp số (cấp khi hoàn tất ký duyệt)" : "")}`
                 }
                 trangThai={phieu?.trangThai}
                 onPrint={() => window.print()}
@@ -1048,7 +1078,7 @@ const Phieu1FormPage: React.FC = () => {
                 laTaoMoi={laTaoMoi}
                 trangThai={phieu?.trangThai}
                 dangLuu={dangThem || dangSua}
-                dangGuiKy={dangGuiKy}
+                dangGuiKy={dangGuiKy || dangXuLyGuiKy}
                 onLuu={luuPhieu}
                 onGuiKy={xuLyGuiKy}
                 onXoa={xuLyXoaPhieu}
