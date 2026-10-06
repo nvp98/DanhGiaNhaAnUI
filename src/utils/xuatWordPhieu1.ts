@@ -43,6 +43,9 @@ import { docHtmlGhiChu, layDanhSachAnhTrongHtml } from "./ghiChuHtml";
 const FONT = "Times New Roman";
 const CO_CHU = 26; // 13pt (đơn vị docx = half-point)
 const CO_CHU_TIEU_DE = 30; // 14pt
+// Cỡ chữ NỘI DUNG trong các ô bảng (header, nội dung tiêu chí, ghi chú) — nhỏ
+// hơn CO_CHU để ghi chú không to hơn nội dung tiêu chí.
+const CO_CHU_BANG = 24; // 12pt
 
 const VIEN_O = { style: BorderStyle.SINGLE, size: 4, color: "000000" } as const;
 const VIEN_BANG = {
@@ -90,7 +93,7 @@ const oOBang = (
                 ? [
                       new Paragraph({
                           alignment: opts.canTrai ? AlignmentType.LEFT : AlignmentType.CENTER,
-                          children: [oChu(noiDung, { dam: opts.dam, co: 24 })],
+                          children: [oChu(noiDung, { dam: opts.dam, co: CO_CHU_BANG })],
                       }),
                   ]
                 : noiDung,
@@ -102,7 +105,8 @@ const oOBang = (
 // ============================================================
 
 // Ghi chú rỗng -> 1 đoạn trống (ô bảng bắt buộc có ít nhất 1 Paragraph), không hiện gì.
-const dichHtmlSangDoan = (html?: string): Paragraph[] => {
+// Mặc định dùng CO_CHU_BANG để khớp cỡ chữ nội dung tiêu chí trong bảng.
+const dichHtmlSangDoan = (html?: string, co: number = CO_CHU_BANG): Paragraph[] => {
     const doanVan = docHtmlGhiChu(html);
     if (doanVan.length === 0) return [new Paragraph({})];
 
@@ -110,8 +114,8 @@ const dichHtmlSangDoan = (html?: string): Paragraph[] => {
         doan =>
             new Paragraph({
                 children: [
-                    ...(doan.laMuc ? [oChu("• ")] : []),
-                    ...doan.runs.map(r => (r.xuongDong ? new TextRun({ text: "", break: 1 }) : oChu(r.text, r))),
+                    ...(doan.laMuc ? [oChu("• ", { co })] : []),
+                    ...doan.runs.map(r => (r.xuongDong ? new TextRun({ text: "", break: 1, size: co }) : oChu(r.text, { ...r, co }))),
                 ],
                 spacing: { after: doan.laMuc ? 40 : 60 },
                 indent: doan.laMuc ? { left: 360 } : undefined,
