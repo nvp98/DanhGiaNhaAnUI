@@ -85,7 +85,7 @@ export const xuatPdfPhieu1 = async (params: XuatWordPhieu1Params): Promise<void>
         oBang(dong.noiDung, { canTrai: true }),
         oTick(dong.ketQua === "DAT"),
         oTick(dong.ketQua === "KHONG_DAT"),
-        oBang(ghiChuSangPdf(dong.ghiChuHtml)),
+        oBang(ghiChuSangPdf(dong.ghiChuHtml, { co: CO_CHU_BANG })),
     ];
     const dongNhom = (ten: string): NoiDungPdf[] => [oBang(ten, { dam: true, canTrai: true, colSpan: 5 }), {}, {}, {}, {}];
 
@@ -125,7 +125,7 @@ export const xuatPdfPhieu1 = async (params: XuatWordPhieu1Params): Promise<void>
             oBang(phanTramHienThi(ketLuan.tyLe)),
             oBang(ketLuanHienThi(ketLuan.ketLuan)),
             oBang(phanTramHienThi(ketLuan.diem)),
-            oBang(ghiChuSangPdf(ketLuan.ghiChuHtml)),
+            oBang(ghiChuSangPdf(ketLuan.ghiChuHtml, { co: CO_CHU_BANG })),
         ],
     ];
 

@@ -196,7 +196,7 @@ export const ghiChuSangPdf = (html: string | undefined, opts: { co?: number; ron
 // "Trang x/y" giữa chân trang — Word đặt footer cách mép dưới 0,5in (36pt);
 // pdfmake vẽ footer trong vùng lề dưới nên đẩy xuống tương ứng.
 export const chanTrang = (co: number, leDuoi: number) => (trang: number, tongTrang: number): NoiDungPdf => ({
-    text: `Trang ${trang}/${tongTrang}`,
+    text: `${trang}/${tongTrang}`,
     alignment: "center",
     fontSize: co,
     margin: [0, Math.max(leDuoi - 36 - co * 1.2, 2), 0, 0],
