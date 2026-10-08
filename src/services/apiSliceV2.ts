@@ -60,6 +60,6 @@ const baseQueryWith401Handler: BaseQueryFn<string | FetchArgs, unknown, FetchBas
 export const apiSliceV2 = createApi({
     reducerPath: 'apiV2',
     baseQuery: baseQueryWith401Handler,
-    tagTypes: ['BepAn', 'NhaThau', 'DiaDiemNhaAn', 'VaiTro', 'Quyen', 'PhongBan', 'NguoiDung', 'ChuKy', 'NhomTieuChi', 'TieuChi', 'MauLuongKy', 'ChuKyPhieu', 'Phieu1', 'Phieu2', 'Phieu3', 'Phieu4'],
+    tagTypes: ['BepAn', 'NhaThau', 'DiaDiemNhaAn', 'VaiTro', 'Quyen', 'PhongBan', 'NguoiDung', 'ChuKy', 'NhomTieuChi', 'TieuChi', 'MauLuongKy', 'ChuKyPhieu', 'Phieu1', 'Phieu2', 'Phieu3', 'Phieu4', 'Dashboard'],
     endpoints: () => ({}),
 });
