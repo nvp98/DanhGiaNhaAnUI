@@ -64,7 +64,7 @@ export const NHOM_MENU: NhomMenu[] = [
         tieuDe: "Báo cáo & lịch sử",
         items: [
             { title: "Lịch sử khảo sát", description: "Tra cứu/export lịch sử khảo sát chấm điểm bữa ăn", to: "/v2/lich-su-khao-sat", icon: <FaHistory />, chiAdmin: true },
-            { title: "Dashboard", description: "Báo cáo tổng hợp Power BI", to: "/v2/dashboard", icon: <FaChartLine />, chiAdmin: true },
+            { title: "Dashboard", description: "Báo cáo tổng hợp đánh giá", to: "/v2/dashboard", icon: <FaChartLine />, chiAdmin: true },
         ],
     },
     {
