@@ -10,6 +10,8 @@ export const MA_QUYEN = {
     QUAN_LY_DANH_MUC: "QUAN_LY_DANH_MUC",
     QUAN_LY_TIEU_CHI: "QUAN_LY_TIEU_CHI",
     QUAN_LY_LUONG_KY: "QUAN_LY_LUONG_KY",
+    QUAN_LY_LSKS: "QUAN_LY_LSKS",
+    QUAN_LY_DASHBOARD: "QUAN_LY_DASHBOARD"
 } as const;
 
 export type MaQuyen = typeof MA_QUYEN[keyof typeof MA_QUYEN];

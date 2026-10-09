@@ -19,6 +19,7 @@ import StatCardComponent from "../components/StatCardComponent";
 import PieChartDanhGiaComponent from "../components/PieChartDanhGiaComponent";
 import BarChartTyLeNgayComponent from "../components/BarChartTyLeNgayComponent";
 import BarChartTheoDiaDiemComponent from "../components/BarChartTheoDiaDiemComponent";
+import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
 
 const { RangePicker } = DatePicker;
 
@@ -130,12 +131,12 @@ const DashboardPageV2: React.FC = () => {
     useEffect(() => {
         if (!authV2.isAuthenticated) {
             navigator("/v2/dang-nhap");
-        } else if (!authV2.nguoiDung?.laAdmin) {
+        } else if (!coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_DASHBOARD)) {
             navigator("/v2");
         }
     }, []);
 
-    if (!authV2.isAuthenticated || !authV2.nguoiDung?.laAdmin) {
+    if (!authV2.isAuthenticated || !coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_DASHBOARD)) {
         return null;
     }
 

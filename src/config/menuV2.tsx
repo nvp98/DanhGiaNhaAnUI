@@ -34,11 +34,6 @@ export interface MucMenu {
     // ký được gán, xem NguoiDungService.DanhSachLoaiPhieuDuocXemAsync ở
     // backend) — không còn hiện mặc định cho mọi tài khoản nội bộ nữa.
     loaiPhieu?: string;
-    // Module kế thừa từ hệ v1 cũ (Lịch sử khảo sát, Dashboard) — không khớp
-    // mã quyền nào trong 6 mã hiện có, backend cũng chưa có policy riêng cho
-    // 2 module này. Tạm thời chỉ Quản trị viên (laAdmin) thấy, giống hệt hành
-    // vi cũ (chỉ tài khoản admin truy cập được).
-    chiAdmin?: boolean;
 }
 
 export interface NhomMenu {
@@ -63,8 +58,8 @@ export const NHOM_MENU: NhomMenu[] = [
     {
         tieuDe: "Báo cáo & lịch sử",
         items: [
-            { title: "Lịch sử khảo sát", description: "Tra cứu/export lịch sử khảo sát chấm điểm bữa ăn", to: "/v2/lich-su-khao-sat", icon: <FaHistory />, chiAdmin: true },
-            { title: "Dashboard", description: "Báo cáo tổng hợp đánh giá", to: "/v2/dashboard", icon: <FaChartLine />, chiAdmin: true },
+            { title: "Lịch sử khảo sát", description: "Tra cứu/export lịch sử khảo sát chấm điểm bữa ăn", to: "/v2/lich-su-khao-sat", icon: <FaHistory />, maQuyen: MA_QUYEN.QUAN_LY_LSKS },
+            { title: "Dashboard", description: "Báo cáo tổng hợp đánh giá", to: "/v2/dashboard", icon: <FaChartLine />, maQuyen: MA_QUYEN.QUAN_LY_DASHBOARD },
         ],
     },
     {
@@ -107,7 +102,6 @@ export const layNhomMenuHienThi = (
             ...nhom,
             items: nhom.items.filter(muc =>
                 (!muc.maQuyen || coQuyen(nguoiDung, muc.maQuyen)) &&
-                (!muc.chiAdmin || nguoiDung?.laAdmin) &&
                 (!muc.loaiPhieu || nguoiDung?.laAdmin || danhSachLoaiPhieuDuocXem.includes(muc.loaiPhieu))
             ),
         }))

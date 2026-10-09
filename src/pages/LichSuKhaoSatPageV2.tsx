@@ -15,6 +15,7 @@ import NhaAnModel from "../models/NhaAnModel";
 import GetNhaAnAction from "../acctions/GetNhaAnAction";
 import { FaDownload } from "react-icons/fa";
 import ExportExcel from "../configs/exportExcel";
+import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
 
 // Module "Lịch sử khảo sát" — chuyển từ AdminPage.tsx (hệ v1 cũ, đăng nhập
 // bằng tài khoản hardcode) sang quản lý trong TrangChuV2Page, dùng chung
@@ -134,7 +135,7 @@ const LichSuKhaoSatPageV2: React.FC = () => {
     useEffect(() => {
         if (!authV2.isAuthenticated) {
             navigator("/v2/dang-nhap");
-        } else if (!authV2.nguoiDung?.laAdmin) {
+        } else if (!coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_LSKS)) {
             navigator("/v2");
         }
     }, []);
@@ -145,7 +146,7 @@ const LichSuKhaoSatPageV2: React.FC = () => {
         }
     }, [authV2.isAuthenticated]);
 
-    if (!authV2.isAuthenticated || !authV2.nguoiDung?.laAdmin) {
+    if (!authV2.isAuthenticated || !coQuyen(authV2.nguoiDung, MA_QUYEN.QUAN_LY_LSKS)) {
         return null;
     }
 
