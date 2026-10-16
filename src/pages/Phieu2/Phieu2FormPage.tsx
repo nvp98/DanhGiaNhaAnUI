@@ -1,4 +1,4 @@
-import { Button, DatePicker, Input, InputNumber, Select, Tooltip } from "antd";
+import { Button, Card, DatePicker, Input, InputNumber, Select, Tooltip } from "antd";
 import dayjs from "dayjs";
 import React, { useEffect, useState } from "react";
 import { FaEdit, FaImage, FaSave } from "react-icons/fa";
@@ -33,9 +33,11 @@ import {
     useDanhSachPhieu1KhaDungQuery,
     useDongBoTrangThaiPhieu2Mutation,
     useGuiKyPhieu2Mutation,
+    useLichSuThuHoiPhieu2Query,
     usePhanHoiYKienNhaThauMutation,
     useSuaPhieu2Mutation,
     useThemPhieu2Mutation,
+    useThuHoiPhieu2Mutation,
     useXoaPhieu2Mutation,
 } from "../../services/phieu2Api";
 
@@ -123,6 +125,10 @@ const Phieu2FormPage: React.FC = () => {
     const [guiKyPhieu2, { isLoading: dangGuiKy }] = useGuiKyPhieu2Mutation();
     const [dongBoTrangThaiPhieu2] = useDongBoTrangThaiPhieu2Mutation();
     const [phanHoiYKienNhaThau, { isLoading: dangLuuYKien }] = usePhanHoiYKienNhaThauMutation();
+    const [thuHoiPhieu2, { isLoading: dangThuHoi }] = useThuHoiPhieu2Mutation();
+    const { data: lichSuThuHoi = [] } = useLichSuThuHoiPhieu2Query(phieuId!, {
+        skip: laTaoMoi || !chiTietPhieu?.phieu.soLanThuHoi,
+    });
 
     // ============================================================
     // LOCAL STATES
@@ -518,6 +524,27 @@ const Phieu2FormPage: React.FC = () => {
                 setNotify({
                     typeNotify: "error",
                     titleNotify: error?.data?.message || "Lưu ý kiến thất bại",
+                    messageNotify: "",
+                })
+            );
+        }
+    };
+
+    const xuLyThuHoi = async (lyDo: string) => {
+        try {
+            await thuHoiPhieu2({ id: phieuId!, lyDo }).unwrap();
+            dispatch(
+                setNotify({
+                    typeNotify: "success",
+                    titleNotify: "Đã thu hồi phiếu — có thể sửa lại và gửi ký lại từ đầu",
+                    messageNotify: "",
+                })
+            );
+        } catch (error: any) {
+            dispatch(
+                setNotify({
+                    typeNotify: "error",
+                    titleNotify: error?.data?.message || "Thu hồi phiếu thất bại",
                     messageNotify: "",
                 })
             );
@@ -987,6 +1014,26 @@ const Phieu2FormPage: React.FC = () => {
                     onDaDongBo={() => phieuId && dongBoTrangThaiPhieu2(phieuId)}
                 />
 
+                {/* Lịch sử thu hồi — xem Phieu1FormPage.tsx (cùng thiết kế). */}
+                {lichSuThuHoi.length > 0 && (
+                    <div className="no-print mt-4 mb-4">
+                        <Card size="small" title="Lịch sử thu hồi phiếu">
+                            {lichSuThuHoi.map(lan => (
+                                <div key={lan.id} className="mb-2 pb-2 border-b last:border-b-0 text-sm">
+                                    <div>
+                                        <strong>Lần {lan.phienBan}</strong> — thu hồi từ trạng thái{" "}
+                                        {lan.trangThaiTruocKhiThuHoi === "DA_DUYET" ? "Đã duyệt" : "Chờ ký"}
+                                    </div>
+                                    <div>
+                                        Người thu hồi: {lan.nguoiThuHoiHoTen || `#${lan.nguoiThuHoiId}`} — {dayjs(lan.ngayThuHoi).format("DD/MM/YYYY HH:mm")}
+                                    </div>
+                                    <div>Lý do: {lan.lyDoThuHoi}</div>
+                                </div>
+                            ))}
+                        </Card>
+                    </div>
+                )}
+
                 {/* Ghi chú cuối phiếu */}
                 <div className="phieu-ghi-chu-footer">
                     <div className="ghi-chu-footer-title">Ghi chú:</div>
@@ -1004,9 +1051,11 @@ const Phieu2FormPage: React.FC = () => {
                 trangThai={phieu?.trangThai}
                 dangLuu={dangThem || dangSua || dangLuuYKien}
                 dangGuiKy={dangGuiKy}
+                dangThuHoi={dangThuHoi}
                 onLuu={luuPhieu}
                 onGuiKy={xuLyGuiKy}
                 onXoa={xuLyXoaPhieu}
+                onThuHoi={xuLyThuHoi}
             />
 
             {/* 6. MODAL SOẠN GHI CHÚ & CHÈN HÌNH ẢNH (TINYMCE) */}

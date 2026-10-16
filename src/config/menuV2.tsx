@@ -1,9 +1,11 @@
 import React from "react";
 import {
+    FaBalanceScaleRight,
     FaBuilding,
     FaChartBar,
     FaChartLine,
     FaClipboardCheck,
+    FaExclamationTriangle,
     FaFire,
     FaHandshake,
     FaHistory,
@@ -60,6 +62,7 @@ export const NHOM_MENU: NhomMenu[] = [
         items: [
             { title: "Lịch sử khảo sát", description: "Tra cứu/export lịch sử khảo sát chấm điểm bữa ăn", to: "/v2/lich-su-khao-sat", icon: <FaHistory />, maQuyen: MA_QUYEN.QUAN_LY_LSKS },
             { title: "Dashboard", description: "Báo cáo tổng hợp đánh giá", to: "/v2/dashboard", icon: <FaChartLine />, maQuyen: MA_QUYEN.QUAN_LY_DASHBOARD },
+            { title: "Rà soát phân bổ đánh giá", description: "So sánh số đánh giá gốc và số đã phân bổ theo suất ăn thực tế", to: "/v2/ket-qua-danh-gia-phan-bo", icon: <FaBalanceScaleRight />, maQuyen: MA_QUYEN.QUAN_LY_PHAN_BO_DANH_GIA },
         ],
     },
     {
@@ -76,6 +79,7 @@ export const NHOM_MENU: NhomMenu[] = [
             { title: "Bếp ăn", description: "Danh mục bếp ăn, gắn nhà thầu vận hành", to: "/v2/bep-an", icon: <FaFire />, maQuyen: MA_QUYEN.QUAN_LY_DANH_MUC },
             { title: "Địa điểm nhà ăn", description: "Danh mục địa điểm/nhà ăn để chọn khi lập phiếu", to: "/v2/dia-diem-nha-an", icon: <FaMapMarkerAlt />, maQuyen: MA_QUYEN.QUAN_LY_DANH_MUC },
             { title: "Nhà thầu", description: "Danh mục nhà thầu cung cấp dịch vụ suất ăn", to: "/v2/nha-thau", icon: <FaHandshake />, maQuyen: MA_QUYEN.QUAN_LY_DANH_MUC },
+            { title: "Loại trừ do lỗi thiết bị", description: "Đánh dấu (Ngày, Bữa ăn, Địa điểm) máy kiosk hỏng — không tính vào Phiếu 3/4", to: "/v2/ket-qua-danh-gia-loai-tru", icon: <FaExclamationTriangle />, maQuyen: MA_QUYEN.QUAN_LY_LOAI_TRU_THIET_BI },
             { title: "Vai trò", description: "Danh mục vai trò người dùng trong hệ thống", to: "/v2/vai-tro", icon: <FaUserTag />, maQuyen: MA_QUYEN.QUAN_LY_VAI_TRO },
             { title: "Phòng ban", description: "Danh mục phòng ban (P.ĐN, P.ATMT...)", to: "/v2/phong-ban", icon: <FaBuilding />, maQuyen: MA_QUYEN.QUAN_LY_PHONG_BAN },
             { title: "Quản lý tài khoản", description: "Duyệt / khóa / gán vai trò cho người dùng", to: "/v2/quan-ly-tai-khoan", icon: <FaUsersCog />, maQuyen: MA_QUYEN.QUAN_LY_TAI_KHOAN },

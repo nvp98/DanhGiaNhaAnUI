@@ -2,6 +2,7 @@ import PagedResultModel from '../models/PagedResultModel';
 import Phieu1Model from '../models/Phieu1Model';
 import Phieu2Model from '../models/Phieu2Model';
 import Phieu2ResponseModel from '../models/Phieu2ResponseModel';
+import Phieu2ThuHoiModel from '../models/Phieu2ThuHoiModel';
 import { apiSliceV2 } from './apiSliceV2';
 
 export interface Phieu2TieuChiRequest {
@@ -81,7 +82,13 @@ export const phieu2Api = apiSliceV2.injectEndpoints({
         }),
         guiKyPhieu2: builder.mutation<Phieu2Model, number>({
             query: (id) => ({ url: `/phieu2/${id}/gui-ky`, method: 'POST' }),
-            invalidatesTags: (_result, _error, id) => [{ type: 'Phieu2', id }, { type: 'Phieu2', id: 'LIST' }],
+            // Xem giải thích ở guiKyPhieu1 (phieu1Api.ts) — thiếu tag này làm
+            // PhieuSignatures hiện cache cũ sau Thu hồi -> Gửi ký lại.
+            invalidatesTags: (_result, _error, id) => [
+                { type: 'Phieu2', id },
+                { type: 'Phieu2', id: 'LIST' },
+                { type: 'ChuKyPhieu', id: `LIST-PHIEU2-${id}` },
+            ],
         }),
         dongBoTrangThaiPhieu2: builder.mutation<Phieu2Model, number>({
             query: (id) => ({ url: `/phieu2/${id}/dong-bo-trang-thai`, method: 'POST' }),
@@ -90,6 +97,22 @@ export const phieu2Api = apiSliceV2.injectEndpoints({
         phanHoiYKienNhaThau: builder.mutation<Phieu2ResponseModel, { id: number; body: Phieu2YKienNhaThauRequest }>({
             query: ({ id, body }) => ({ url: `/phieu2/${id}/y-kien-nha-thau`, method: 'POST', body }),
             invalidatesTags: (_result, _error, { id }) => [{ type: 'Phieu2', id }],
+        }),
+        // Thu hồi phiếu đang Chờ ký/Đã duyệt về Nháp để sửa lại (xem
+        // Phieu2Service.ThuHoiAsync).
+        thuHoiPhieu2: builder.mutation<Phieu2Model, { id: number; lyDo: string }>({
+            query: ({ id, lyDo }) => ({ url: `/phieu2/${id}/thu-hoi`, method: 'POST', body: { lyDo } }),
+            // Xem giải thích ở thuHoiPhieu1 (phieu1Api.ts).
+            invalidatesTags: (_result, _error, { id }) => [
+                { type: 'Phieu2', id },
+                { type: 'Phieu2', id: 'LIST' },
+                { type: 'Phieu2', id: `ThuHoi-${id}` },
+                { type: 'ChuKyPhieu', id: `LIST-PHIEU2-${id}` },
+            ],
+        }),
+        lichSuThuHoiPhieu2: builder.query<Phieu2ThuHoiModel[], number>({
+            query: (id) => `/phieu2/${id}/lich-su-thu-hoi`,
+            providesTags: (_result, _error, id) => [{ type: 'Phieu2', id: `ThuHoi-${id}` }],
         }),
     }),
 });
@@ -104,4 +127,6 @@ export const {
     useGuiKyPhieu2Mutation,
     useDongBoTrangThaiPhieu2Mutation,
     usePhanHoiYKienNhaThauMutation,
+    useThuHoiPhieu2Mutation,
+    useLichSuThuHoiPhieu2Query,
 } = phieu2Api;

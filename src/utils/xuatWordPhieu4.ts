@@ -22,6 +22,7 @@ import phieuHeaderInfo from "../config/phieuHeaderInfo.json";
 import { BangCoDinhConfig } from "../components/phieu";
 import { PHIEU4_BANG1_CONFIG, PHIEU4_BANG2_CONFIG } from "../config/phieu4BangConfig";
 import { Phieu4BangModel, Phieu4DongModel } from "../models/Phieu4ResponseModel";
+import { dinhDangSo } from "./dinhDangSo";
 
 // Xuất file .docx khớp đúng layout Phieu4FormPage.tsx (bảng tổng hợp đánh
 // giá & phân bổ suất ăn — Phiếu 4), theo đúng cách làm của xuatWordPhieu3.ts.
@@ -81,8 +82,10 @@ const oO = (
 
 const ngayHienThi = (d?: string): string => (d ? dayjs(d).format("DD/MM/YYYY") : "........................");
 
+// Số lẻ hiện 2 chữ số thập phân, số chẵn hiện nguyên (không ",00") — khớp
+// đúng cách hiển thị trên Phieu4FormPage.tsx, xem dinhDangSo.ts.
 const hienThiGiaTri = (v?: number | null): string =>
-    v === undefined || v === null ? "--" : v.toLocaleString("vi-VN");
+    v === undefined || v === null ? "--" : dinhDangSo(v);
 
 const giaTriODoiTuong = (dong: Phieu4DongModel, nhaThauId: number): number | undefined | null =>
     dong.giaTri.find(g => g.nhaThauId === nhaThauId)?.giaTri;
@@ -381,7 +384,7 @@ export const xuatWordPhieu4 = async (params: XuatWordPhieu4Params): Promise<void
                     // oDoan(`Số: ${soHieu || "........................"}`, { co: 22, canhTruoc: 100, canhSau: 100 }),
                     oDoan("BẢNG TỔNG HỢP ĐÁNH GIÁ & PHÂN BỔ SUẤT ĂN", { dam: true, canGiua: true, co: CO_CHU_TIEU_DE, canhSau: 200 }),
 
-                    oDoan(`Khoảng thời gian: ${ngayHienThi(tuNgay)} — ${ngayHienThi(denNgay)}`, { canhSau: 200, dam: true, canGiua: true }),
+                    oDoan(`Kỳ phân bổ: Quý....../......`, {canhSau: 200, dam: true, canGiua: true }),
 
                     ...(bang1
                         ? [

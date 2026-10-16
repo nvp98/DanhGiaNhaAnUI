@@ -32,7 +32,7 @@ const BarChartTheoDiaDiemComponent: React.FC<BarChartTheoDiaDiemComponentProps> 
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-            legend: { position: 'top' as const },
+            legend: { position: 'bottom' as const },
             tooltip: {
                 callbacks: {
                     label: (tooltipItem: any) => `${tooltipItem.dataset.label}: ${tooltipItem.raw}`,

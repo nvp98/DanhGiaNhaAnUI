@@ -1,6 +1,7 @@
 import React from "react";
 import { Tag } from "antd";
 import { Phieu4BangModel, Phieu4DongModel } from "../../models/Phieu4ResponseModel";
+import { dinhDangSo } from "../../utils/dinhDangSo";
 
 // ============================================================
 // CONFIG DẠNG MA TRẬN (dòng × cột) CHO CÁC BẢNG "CỐ ĐỊNH" (hard-code) —
@@ -166,11 +167,14 @@ export const BangCoDinhTable: React.FC<BangCoDinhTableProps> = ({
                                     <>
                                         <td className="o-noi-dung">{nhom.nhanNhom}</td>
                                         <td className="o-dvt" />
-                                        {cotNhaThau.map(c => (
-                                            <td key={c.nhaThauId} className="o-so o-so-tong">
-                                                {tongNhom(dongCon.map(x => x.dong), c.nhaThauId, layGiaTri) ?? "--"}
-                                            </td>
-                                        ))}
+                                        {cotNhaThau.map(c => {
+                                            const tong = tongNhom(dongCon.map(x => x.dong), c.nhaThauId, layGiaTri);
+                                            return (
+                                                <td key={c.nhaThauId} className="o-so o-so-tong">
+                                                    {tong === null ? "--" : dinhDangSo(tong)}
+                                                </td>
+                                            );
+                                        })}
                                     </>
                                 ) : (
                                     <td colSpan={2 + cotNhaThau.length}>{nhom.nhanNhom}</td>
