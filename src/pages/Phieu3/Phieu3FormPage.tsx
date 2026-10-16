@@ -26,6 +26,7 @@ import { Phieu3Bang1DongModel, Phieu3Bang2DongModel } from "../../models/Phieu3R
 import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
 import { locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
+import { dinhDangSo, dinhDangPhanTram } from "../../utils/dinhDangSo";
 import { useDanhSachPhieu1Query } from "../../services/phieu1Api";
 import { useDanhSachPhieu2Query } from "../../services/phieu2Api";
 import {
@@ -275,7 +276,9 @@ const Phieu3FormPage: React.FC = () => {
     // trước). Giữ kèm "id" để bấm số hiệu điều hướng thẳng tới phiếu chi tiết
     // (xem renderDsClickable).
     // Phiếu 2/1 ĐÃ DUYỆT luôn có số hiệu (chỉ cấp khi duyệt) — "?? ''" chỉ để phòng thủ.
-    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay.map(p => ({ id: p.id, label: (p.soHieu ?? "").split("/")[0] }));
+    const dsSoHieuPhieu2 = danhSachPhieu2ThangNay
+        .map(p => ({ id: p.id, label: (p.soHieu ?? "").split("/")[0] }))
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { numeric: true }));
 
     // Map lồng phongBanId -> (số hiệu -> id Phiếu 1) — giữ kèm id để bấm số
     // hiệu điều hướng thẳng tới phiếu chi tiết, cùng cách lấy nhãn với
@@ -418,6 +421,7 @@ const Phieu3FormPage: React.FC = () => {
         await xuatWordPhieu3({
             soHieu: phieu?.soHieu,
             ngayLap: phieu?.ngayTao,
+            soHopDong: phieu?.soHopDong,
             tenNhaThau: tenNhaThau(nhaThauId),
             thang,
             nam,
@@ -447,13 +451,12 @@ const Phieu3FormPage: React.FC = () => {
         });
     };
 
-    // Định dạng 1 giá trị Bảng 1 theo đúng kiểu hiển thị của dòng (số nguyên
-    // hoặc % có 2 số thập phân với dòng TY_LE_PHAN_TRAM) — dùng chung cho ô
-    // và tooltip so sánh giá trị hệ thống / đã sửa tay.
+    // Định dạng 1 giá trị Bảng 1 theo đúng kiểu hiển thị của dòng (số/% dòng
+    // TY_LE_PHAN_TRAM) — số lẻ hiện 2 chữ số thập phân, số chẵn hiện nguyên
+    // (không ",00", xem dinhDangSo.ts) — dùng chung cho ô và tooltip so sánh
+    // giá trị hệ thống / đã sửa tay.
     const dinhDangGiaTriBang1 = (dong: Phieu3Bang1DongModel, giaTri: number) =>
-        dong.maDong === "TY_LE_PHAN_TRAM"
-            ? `${giaTri.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`
-            : giaTri.toLocaleString("vi-VN");
+        dong.maDong === "TY_LE_PHAN_TRAM" ? dinhDangPhanTram(giaTri) : dinhDangSo(giaTri);
 
     // Ô Bảng 1: render input hoặc giá trị tĩnh. Nếu ô đã từng bị sửa tay
     // (khác giá trị hệ thống tự tính) thì tô vàng nhạt + hover xem giá trị
@@ -503,7 +506,7 @@ const Phieu3FormPage: React.FC = () => {
                 ? suaDaDangThucDon[dong.phongBanId]
                 : oGiaTri?.giaTri ?? null;
             const hienThi = giaTriDangSua !== null && giaTriDangSua !== undefined
-                ? Number(giaTriDangSua).toLocaleString("vi-VN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })
+                ? dinhDangSo(Number(giaTriDangSua))
                 : "--";
             return (
                 <>
@@ -524,7 +527,7 @@ const Phieu3FormPage: React.FC = () => {
         if (oGiaTri?.giaTri === undefined || oGiaTri?.giaTri === null) return <span>--</span>;
         return (
             <span className={oGiaTri.chinhSuaThuCong ? "o-so-sua-tay" : undefined}>
-                {Number(oGiaTri.giaTri).toLocaleString("vi-VN", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}
+                {dinhDangSo(Number(oGiaTri.giaTri))}
             </span>
         );
     };
@@ -638,7 +641,7 @@ const Phieu3FormPage: React.FC = () => {
                     {/* 1. CĂN CỨ ĐÁNH GIÁ — tự tổng hợp từ Phiếu 1/Phiếu 2 trong tháng */}
                     <div className="phieu3-section-title">1. Căn cứ đánh giá</div>
                     <div className="phieu3-can-cu-list">
-                        <div>- Hợp đồng suất ăn công nghiệp số 0390.2023.HPDQ-PN-HDNT;</div>
+                        <div>- Hợp đồng suất ăn công nghiệp số {phieu?.soHopDong || "........................"};</div>
                         <div>- Căn cứ kết quả đánh giá thực tế từ CBNV;</div>
                         {dsSoHieuPhieu2.length > 0 && (
                             <div>
@@ -705,7 +708,7 @@ const Phieu3FormPage: React.FC = () => {
                         </tbody>
                     </table>
                     <div className="text-xs text-gray-400 no-print mt-1">
-                        "Tổng suất ăn tại chỗ" nhập tay hoàn toàn (không dùng để tính tỷ lệ bên dưới). "Tỷ lệ % tiêu chí đánh giá" tự tính = Số lượt CBNV tham gia đánh giá ở từng mức / Tổng số lượt CBNV tham gia đánh giá — bấm "Làm mới" (thanh nút cuối trang) để cập nhật.
+                         "Tỷ lệ % tiêu chí đánh giá" tự tính = Số lượt CBNV tham gia đánh giá ở từng mức / Tổng số lượt CBNV tham gia đánh giá — bấm "Làm mới" (thanh nút cuối trang) để cập nhật.
                     </div>
 
                     {/* BẢNG 2 */}

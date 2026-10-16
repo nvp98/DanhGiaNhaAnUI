@@ -194,6 +194,7 @@ export const DoanBuilder: React.FC<DoanBuilderProps> = ({ items, coTheSua, dangT
                                     size="small"
                                     format="DD/MM/YYYY"
                                     value={d.tuNgay}
+                                    defaultPickerValue={ngayToiThieu}
                                     disabledDate={ngayBiVoHieuHoa}
                                     onChange={(v) => capNhatDong(d.key, { tuNgay: v })}
                                 />
@@ -219,6 +220,7 @@ export const DoanBuilder: React.FC<DoanBuilderProps> = ({ items, coTheSua, dangT
                                     size="small"
                                     format="DD/MM/YYYY"
                                     value={d.denNgay}
+                                    defaultPickerValue={ngayToiThieu}
                                     disabledDate={ngayBiVoHieuHoa}
                                     onChange={(v) => capNhatDong(d.key, { denNgay: v })}
                                 />

@@ -12,6 +12,8 @@ import { useEffect } from 'react'
 import DangNhapPageV2 from './pages/DangNhapPageV2'
 import LichSuKhaoSatPageV2 from './pages/LichSuKhaoSatPageV2'
 import DashboardPageV2 from './pages/DashboardPageV2'
+import KetQuaDanhGiaPhanBoPageV2 from './pages/KetQuaDanhGiaPhanBoPageV2'
+import KetQuaDanhGiaLoaiTruPageV2 from './pages/KetQuaDanhGiaLoaiTruPageV2'
 import DangKyPageV2 from './pages/DangKyPageV2'
 import TrangChuV2Page from './pages/TrangChuV2Page'
 import BepAnPageV2 from './pages/BepAnPageV2'
@@ -77,6 +79,8 @@ function App() {
       <Route path='/v2' element={<TrangChuV2Page/>} />
       <Route path='/v2/lich-su-khao-sat' element={<LichSuKhaoSatPageV2/>} />
       <Route path='/v2/dashboard' element={<DashboardPageV2/>} />
+      <Route path='/v2/ket-qua-danh-gia-phan-bo' element={<KetQuaDanhGiaPhanBoPageV2/>} />
+      <Route path='/v2/ket-qua-danh-gia-loai-tru' element={<KetQuaDanhGiaLoaiTruPageV2/>} />
       <Route path='/v2/dang-nhap' element={<DangNhapPageV2/>} />
       <Route path='/v2/dang-ky' element={<DangKyPageV2/>} />
       <Route path='/v2/bep-an' element={<BepAnPageV2/>} />

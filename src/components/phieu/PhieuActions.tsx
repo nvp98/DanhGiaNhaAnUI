@@ -1,6 +1,6 @@
-import { Button, Popconfirm } from "antd";
-import React from "react";
-import { FaSyncAlt, FaTrash } from "react-icons/fa";
+import { Button, Input, Modal, Popconfirm } from "antd";
+import React, { useState } from "react";
+import { FaSyncAlt, FaTrash, FaUndo } from "react-icons/fa";
 
 // Id của khung chứa nút trong thanh action cố định — PhieuSignatures portal
 // nút Ký/Từ chối của bước đang chờ ký vào đây, để luôn nằm chung 1 thanh với
@@ -20,10 +20,16 @@ export interface PhieuActionsProps {
     // Phiếu 1/2 (Phiếu 3/4); ẩn cùng lúc với Lưu/Gửi ký sau khi đã gửi ký
     // (coTheSua = false).
     dangLamMoi?: boolean;
+    // Chỉ truyền onThuHoi ở Phiếu 1/2 (Phiếu 3/4 chưa có chức năng này) — nút
+    // "Thu hồi phiếu" chỉ hiện khi có onThuHoi VÀ trangThai là CHO_KY/DA_DUYET
+    // (xem Phieu1Service.ThuHoiAsync/Phieu2Service.ThuHoiAsync). Bắt buộc nhập
+    // lý do trước khi xác nhận, giống modal "Lý do từ chối" ở PhieuSignatures.
+    dangThuHoi?: boolean;
     onLuu?: () => void;
     onLamMoi?: () => void;
     onGuiKy?: () => void;
     onXoa?: () => void;
+    onThuHoi?: (lyDo: string) => void;
     extraButtons?: React.ReactNode;
 }
 
@@ -34,12 +40,30 @@ export const PhieuActions: React.FC<PhieuActionsProps> = ({
     dangLuu,
     dangGuiKy,
     dangLamMoi,
+    dangThuHoi,
     onLuu,
     onLamMoi,
     onGuiKy,
     onXoa,
+    onThuHoi,
     extraButtons,
 }) => {
+    const [moThuHoi, setMoThuHoi] = useState(false);
+    const [lyDoThuHoi, setLyDoThuHoi] = useState("");
+    const [loiLyDoThuHoi, setLoiLyDoThuHoi] = useState(false);
+
+    const coTheThuHoi = !laTaoMoi && !!onThuHoi && (trangThai === "CHO_KY" || trangThai === "DA_DUYET");
+
+    const xuLyXacNhanThuHoi = () => {
+        if (!lyDoThuHoi.trim()) {
+            setLoiLyDoThuHoi(true);
+            return;
+        }
+        onThuHoi?.(lyDoThuHoi.trim());
+        setMoThuHoi(false);
+        setLyDoThuHoi("");
+    };
+
     return (
         <>
             {/* Spacer — giữ chỗ trong luồng bình thường vì thanh nút bên dưới
@@ -104,9 +128,48 @@ export const PhieuActions: React.FC<PhieuActionsProps> = ({
                         </Button>
                     )}
 
+                    {coTheThuHoi && (
+                        <Button
+                            danger
+                            size="large"
+                            icon={<FaUndo />}
+                            loading={dangThuHoi}
+                            onClick={() => { setMoThuHoi(true); setLoiLyDoThuHoi(false); }}
+                        >
+                            Thu hồi phiếu
+                        </Button>
+                    )}
+
                     {extraButtons}
                 </div>
             </div>
+
+            <Modal
+                title="Thu hồi phiếu"
+                open={moThuHoi}
+                onCancel={() => { setMoThuHoi(false); setLoiLyDoThuHoi(false); }}
+                onOk={xuLyXacNhanThuHoi}
+                okText="Thu hồi"
+                okButtonProps={{ danger: true }}
+                cancelText="Hủy"
+                destroyOnClose
+            >
+                <p className="mb-2">
+                    {trangThai === "DA_DUYET"
+                        ? "Phiếu này đã được ký duyệt hoàn tất. Thu hồi sẽ hủy toàn bộ tiến độ ký hiện tại — sau khi sửa phải ký lại từ đầu. Số hiệu đã cấp vẫn được giữ nguyên."
+                        : "Phiếu đang chờ ký sẽ quay lại trạng thái Nháp để sửa; tiến độ ký hiện tại sẽ không còn hiệu lực, phải gửi ký lại từ đầu sau khi sửa."}
+                </p>
+                <Input.TextArea
+                    rows={3}
+                    placeholder="Nhập lý do thu hồi..."
+                    value={lyDoThuHoi}
+                    onChange={e => { setLyDoThuHoi(e.target.value); if (e.target.value.trim()) setLoiLyDoThuHoi(false); }}
+                    status={loiLyDoThuHoi ? "error" : undefined}
+                />
+                {loiLyDoThuHoi && (
+                    <div className="text-red-500 text-sm mt-1">Vui lòng nhập lý do thu hồi</div>
+                )}
+            </Modal>
         </>
     );
 };

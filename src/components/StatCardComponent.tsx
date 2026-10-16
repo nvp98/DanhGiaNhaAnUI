@@ -15,8 +15,8 @@ const StatCardComponent: React.FC<StatCardComponentProps> = ({ title, value, bac
             className="rounded-xl shadow border flex flex-col items-center justify-center text-center p-2 h-full"
             style={{ background }}
         >
-            <div className="text-xl font-extrabold leading-tight" style={{ color: valueColor }}>{value}</div>
-            <div className="text-xs text-zinc-600 mt-0.5">{title}</div>
+            <div className="text-2xl lg:text-3xl font-extrabold leading-tight" style={{ color: valueColor }}>{value}</div>
+            <div className="text-sm text-zinc-600 mt-1">{title}</div>
         </div>
     );
 };

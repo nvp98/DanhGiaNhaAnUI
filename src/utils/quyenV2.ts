@@ -11,7 +11,12 @@ export const MA_QUYEN = {
     QUAN_LY_TIEU_CHI: "QUAN_LY_TIEU_CHI",
     QUAN_LY_LUONG_KY: "QUAN_LY_LUONG_KY",
     QUAN_LY_LSKS: "QUAN_LY_LSKS",
-    QUAN_LY_DASHBOARD: "QUAN_LY_DASHBOARD"
+    QUAN_LY_DASHBOARD: "QUAN_LY_DASHBOARD",
+    // Tách riêng khỏi QUAN_LY_DANH_MUC/QUAN_LY_LSKS — trước đây 2 trang này
+    // ăn ké quyền khác nên màn Vai trò không có checkbox riêng để gán (xem
+    // migration_quyen_ket_qua_danh_gia.sql).
+    QUAN_LY_LOAI_TRU_THIET_BI: "QUAN_LY_LOAI_TRU_THIET_BI",
+    QUAN_LY_PHAN_BO_DANH_GIA: "QUAN_LY_PHAN_BO_DANH_GIA",
 } as const;
 
 export type MaQuyen = typeof MA_QUYEN[keyof typeof MA_QUYEN];

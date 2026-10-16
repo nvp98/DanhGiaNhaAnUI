@@ -20,6 +20,7 @@ import { saveAs } from "file-saver";
 import logoPdf from "../assets/images/LogoPDF.png";
 import phieuHeaderInfo from "../config/phieuHeaderInfo.json";
 import { Phieu3Bang1DongModel } from "../models/Phieu3ResponseModel";
+import { dinhDangSo, dinhDangPhanTram } from "./dinhDangSo";
 
 // Xuất file .docx khớp đúng layout Phieu3FormPage.tsx (báo cáo chất lượng
 // dịch vụ suất ăn theo tháng — Phiếu 3). Chạy hoàn toàn ở client (thư viện
@@ -79,11 +80,11 @@ const oOBang = (
         ],
     });
 
-const soHienThi = (v?: number): string => (v === undefined || v === null ? "--" : v.toLocaleString("vi-VN"));
-const phanTramHienThi = (v?: number): string =>
-    v === undefined || v === null ? "--" : `${v.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
-const diem1SoLeHienThi = (v?: number): string =>
-    v === undefined || v === null ? "--" : v.toLocaleString("vi-VN", { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+// Số lẻ hiện 2 chữ số thập phân, số chẵn hiện nguyên (không ",00") — khớp
+// đúng cách hiển thị trên Phieu3FormPage.tsx, xem dinhDangSo.ts.
+const soHienThi = (v?: number): string => (v === undefined || v === null ? "--" : dinhDangSo(v));
+const phanTramHienThi = (v?: number): string => (v === undefined || v === null ? "--" : dinhDangPhanTram(v));
+const diemBang2HienThi = (v?: number): string => (v === undefined || v === null ? "--" : dinhDangSo(v));
 
 // ============================================================
 // DỊCH HTML (TinyMCE) -> Paragraph[] — giữ đậm/nghiêng/gạch chân/danh sách,
@@ -182,6 +183,7 @@ export interface XuatWordPhieu3ChuKy {
 export interface XuatWordPhieu3Params {
     soHieu?: string;
     ngayLap?: string; // NgayTao của phiếu — hiện "Quảng Ngãi, ngày ... tháng ... năm ..." trên chuKyTable
+    soHopDong?: string; // Snapshot NhaThau.SoHopDong lúc lập phiếu — xem Phieu3BaoCao.SoHopDong
     tenNhaThau: string;
     thang: number;
     nam: number;
@@ -233,7 +235,7 @@ const BANG1_COT_DIEM_LABEL = [
 
 export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void> => {
     const {
-        soHieu, ngayLap, tenNhaThau, thang, nam, dsSoHieuPhieu2, canCuPhieu1,
+        soHieu, ngayLap, soHopDong, tenNhaThau, thang, nam, dsSoHieuPhieu2, canCuPhieu1,
         bang1, bang2, bang2CotTieuChi, yKienHtml, chuKy,
     } = params;
 
@@ -297,14 +299,14 @@ export const xuatWordPhieu3 = async (params: XuatWordPhieu3Params): Promise<void
         ...bang2.map(dong => new TableRow({
             children: [
                 oOBang(dong.tenPhongBan, { canTrai: true }),
-                ...dong.giaTriTheoTieuChi.map(v => oOBang(diem1SoLeHienThi(v))),
+                ...dong.giaTriTheoTieuChi.map(v => oOBang(diemBang2HienThi(v))),
             ],
         })),
     ];
 
     // ---- "1. Căn cứ đánh giá" ----
     const canCuDoan: Paragraph[] = [
-        oDoan("- Hợp đồng suất ăn công nghiệp số 0390.2023.HPDQ-PN-HDNT;"),
+        oDoan(`- Hợp đồng suất ăn công nghiệp số ${soHopDong || "........................"};`),
     ];
     if (dsSoHieuPhieu2.length > 0) {
         canCuDoan.push(

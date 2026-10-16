@@ -67,6 +67,7 @@ const NhaThauPageV2: React.FC = () => {
                 nhaThau.ngayBatDauHd ? dayjs(nhaThau.ngayBatDauHd) : null,
                 nhaThau.ngayKetThucHd ? dayjs(nhaThau.ngayKetThucHd) : null,
             ],
+            soHopDong: nhaThau.soHopDong,
             trangThai: nhaThau.trangThai,
         });
         setMoModal(true);
@@ -79,6 +80,7 @@ const NhaThauPageV2: React.FC = () => {
             ten: values.ten,
             ngayBatDauHd: tuNgay ? tuNgay.format("YYYY-MM-DD") : undefined,
             ngayKetThucHd: denNgay ? denNgay.format("YYYY-MM-DD") : undefined,
+            soHopDong: values.soHopDong,
             trangThai: values.trangThai,
         };
 
@@ -127,6 +129,12 @@ const NhaThauPageV2: React.FC = () => {
             dataIndex: 'ten',
             key: 'ten',
             sorter: { compare: (a, b) => a.ten.localeCompare(b.ten) },
+        },
+        {
+            title: 'Số hợp đồng',
+            dataIndex: 'soHopDong',
+            key: 'soHopDong',
+            render: (soHopDong) => soHopDong || "--",
         },
         {
             title: 'Ngày bắt đầu HĐ',
@@ -225,6 +233,13 @@ const NhaThauPageV2: React.FC = () => {
                 </Form.Item>
                 <Form.Item label="Thời hạn hợp đồng" name="khoangHd">
                     <DatePicker.RangePicker className="w-full" format="DD/MM/YYYY" placeholder={['Từ ngày', 'Đến ngày']} />
+                </Form.Item>
+                <Form.Item
+                    label="Số hợp đồng"
+                    name="soHopDong"
+                    extra="Dùng để điền vào mục &quot;Hợp đồng suất ăn công nghiệp số...&quot; khi lập Phiếu 3 mới — đổi số này không ảnh hưởng các báo cáo đã lập trước đó."
+                >
+                    <Input placeholder="VD: 0390.2023.HPDQ-PN-HDNT" />
                 </Form.Item>
                 <Form.Item label="Trạng thái" name="trangThai" rules={[{ required: true }]}>
                     <Select>

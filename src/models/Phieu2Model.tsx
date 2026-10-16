@@ -17,6 +17,9 @@ export default interface Phieu2Model {
     nguoiTao?: number;
     trangThai: string; // NHAP, CHO_KY, DA_DUYET, TU_CHOI
     ngayTao: string;
+    // Số lần phiếu đã bị thu hồi — chi tiết từng lần xem
+    // GET /phieu2/{id}/lich-su-thu-hoi (Phieu2ThuHoiModel).
+    soLanThuHoi: number;
     // Chỉ có ở API danh sách (GET /phieu2) — tên người đã ký (ĐÃ DUYỆT, lượt
     // ký mới nhất), resolve sẵn từ backend. NULL khi chưa ai ký bước tương ứng.
     tenNhaThauDaKy?: string;

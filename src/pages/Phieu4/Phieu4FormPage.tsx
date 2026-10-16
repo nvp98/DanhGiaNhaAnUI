@@ -25,6 +25,7 @@ import { Phieu4DongModel } from "../../models/Phieu4ResponseModel";
 import { useTienDoKyQuery } from "../../services/chuKyPhieuApi";
 import { useDanhSachNhaThauQuery } from "../../services/nhaThauApiV2";
 import { laHoatDong, locDanhMucChon, tenOptionDanhMuc } from "../../utils/danhMucHoatDong";
+import { dinhDangSo } from "../../utils/dinhDangSo";
 import {
     useCapNhatGiaTriPhieu4Mutation,
     useChiTietPhieu4Query,
@@ -183,7 +184,7 @@ const Phieu4FormPage: React.FC = () => {
     const renderOGiaTri = (dong: Phieu4DongModel, nhaThauId: number) => {
         if (dongTrongSo && dong.id === dongTrongSo.id) {
             const v = tinhDiemTrongSo(nhaThauId);
-            return <span>{v ?? "--"}</span>;
+            return <span>{v === null ? "--" : dinhDangSo(v)}</span>;
         }
 
         const giaTri = layGiaTri(dong, nhaThauId);
@@ -201,12 +202,12 @@ const Phieu4FormPage: React.FC = () => {
                         value={giaTriDangSua ?? undefined}
                         onChange={v => setSuaDaDangThucDon(prev => ({ ...prev, [nhaThauId]: v === null || v === undefined ? null : Number(v) }))}
                     />
-                    <span className="print-only">{giaTriDangSua ?? "--"}</span>
+                    <span className="print-only">{giaTriDangSua === null || giaTriDangSua === undefined ? "--" : dinhDangSo(giaTriDangSua)}</span>
                 </>
             );
         }
 
-        return <span>{giaTri ?? "--"}</span>;
+        return <span>{giaTri === null || giaTri === undefined ? "--" : dinhDangSo(giaTri)}</span>;
     };
 
     // ============================================================

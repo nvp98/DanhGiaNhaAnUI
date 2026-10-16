@@ -6,6 +6,7 @@ export interface NhaThauRequestV2 {
     ten: string;
     ngayBatDauHd?: string;
     ngayKetThucHd?: string;
+    soHopDong?: string;
     trangThai: string;
 }
 

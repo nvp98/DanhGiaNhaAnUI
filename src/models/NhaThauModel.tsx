@@ -4,6 +4,7 @@ export default interface NhaThauModel {
     ten: string;
     ngayBatDauHd?: string;
     ngayKetThucHd?: string;
+    soHopDong?: string;
     trangThai: string;
     ngayTao: string;
 }
