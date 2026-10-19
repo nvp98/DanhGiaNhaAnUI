@@ -127,7 +127,7 @@ const LichSuKhaoSatPageV2: React.FC = () => {
         setLoading(true)
         const listNhaAn = await GetNhaAnAction()
         setDataNhaAn(listNhaAn)
-        const dataBPa: KhaoSatModel[] = await GetKhaoSatAction(today, today + " 23:59")
+        const dataBPa: KhaoSatModel[] = await GetKhaoSatAction(today, today + " 23:59", authV2.token)
         setdata(dataBPa)
         setLoading(false)
     }
@@ -152,7 +152,7 @@ const LichSuKhaoSatPageV2: React.FC = () => {
 
     const getDataFilter = async (startDate: string, endDate: string) => {
         setLoading(true)
-        const dataBPa: KhaoSatModel[] = await GetKhaoSatAction(startDate, endDate)
+        const dataBPa: KhaoSatModel[] = await GetKhaoSatAction(startDate, endDate, authV2.token)
         setdata(dataBPa)
         setLoading(false)
     }
