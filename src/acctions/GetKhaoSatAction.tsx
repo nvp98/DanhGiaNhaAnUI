@@ -4,14 +4,15 @@ import KhaoSatModel from "../models/KhaoSatModel";
 
 
 
-const GetKhaoSatAction = async (start: string, end: string): Promise<KhaoSatModel[]> => {
-   
+const GetKhaoSatAction = async (start: string, end: string, token?: string): Promise<KhaoSatModel[]> => {
+
     const url = `${LinkServerV2}/Evaluates?TuNgay=${start}&DenNgay=${end}`;
 
     try {
         const res = await axios({
             method: "get",
-            url: url
+            url: url,
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined
         });
 console.log(res.data)
         if (res.status === 200) {

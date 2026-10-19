@@ -1,16 +1,17 @@
 import React, { useState } from "react";
-import { Button, DatePicker, Select, Table, TableColumnsType, Tag, Tooltip } from "antd";
+import { Button, DatePicker, Modal, Select, Table, TableColumnsType, Tag, Tooltip } from "antd";
 import dayjs, { Dayjs } from "dayjs";
-import { FaBalanceScaleRight } from "react-icons/fa";
+import { FaBalanceScaleRight, FaCalculator, FaExclamationTriangle } from "react-icons/fa";
 import { IoSearchOutline } from "react-icons/io5";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { RootType } from "../store/types";
 import LayoutV2Component from "../components/LayoutV2Component";
 import KetQuaDanhGiaPhanBoModel from "../models/KetQuaDanhGiaPhanBoModel";
-import { useDanhSachKetQuaDanhGiaPhanBoQuery } from "../services/ketQuaDanhGiaPhanBoApiV2";
+import { useDanhSachKetQuaDanhGiaPhanBoQuery, useTinhLaiKhoangKetQuaDanhGiaPhanBoMutation } from "../services/ketQuaDanhGiaPhanBoApiV2";
 import { useDanhSachDiaDiemNhaAnQuery } from "../services/diaDiemNhaAnApiV2";
 import { useDanhSachBuaAnQuery } from "../services/buaAnApi";
+import { setNotify } from "../store/notifycationSlide";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
 
 const { RangePicker } = DatePicker;
@@ -21,6 +22,7 @@ const { RangePicker } = DatePicker;
 // đọc đúng các cột "Đã phân bổ" ở đây để tính "Lượt đánh giá".
 const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
+    const dispatch = useDispatch();
     const navigator = useNavigate();
 
     const homNay = dayjs().startOf("day");
@@ -32,11 +34,15 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
     const [khoangNgayNhap, setKhoangNgayNhap] = useState<[Dayjs, Dayjs]>(macDinhKhoangNgay);
     const [diaDiemNhap, setDiaDiemNhap] = useState<number | undefined>(undefined);
     const [buaAnNhap, setBuaAnNhap] = useState<number | undefined>(undefined);
+    // true = "Đã co giãn" (Tong != TongGoc), false = "Giữ nguyên", undefined
+    // = tất cả trạng thái.
+    const [trangThaiNhap, setTrangThaiNhap] = useState<boolean | undefined>(undefined);
 
     const [boLocApDung, setBoLocApDung] = useState({
         khoangNgay: macDinhKhoangNgay,
         diaDiemLoc: undefined as number | undefined,
         buaAnLoc: undefined as number | undefined,
+        trangThaiLoc: undefined as boolean | undefined,
     });
 
     const { data: danhSachDiaDiem = [] } = useDanhSachDiaDiemNhaAnQuery();
@@ -50,20 +56,83 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
         idBuaAn: boLocApDung.buaAnLoc,
         tuNgay: boLocApDung.khoangNgay[0].format("YYYY-MM-DD"),
         denNgay: boLocApDung.khoangNgay[1].format("YYYY-MM-DD"),
+        daCoGian: boLocApDung.trangThaiLoc,
     });
+    const [tinhLaiKhoang, { isLoading: dangPhanBo }] = useTinhLaiKhoangKetQuaDanhGiaPhanBoMutation();
+
+    // Số ngày đang chọn ở form search (ô nhập, chưa cần bấm "Tìm kiếm") —
+    // dùng để chặn nút "Phân bổ lại" khi khoảng ngày quá 2 ngày (quét hết
+    // bữa x địa điểm active cho mỗi ngày, khoảng dài dễ quá tải DB — xác
+    // nhận nghiệp vụ 2026-10-19).
+    const soNgayDangChon = khoangNgayNhap[1].startOf("day").diff(khoangNgayNhap[0].startOf("day"), "day") + 1;
+    const khoangNgayQuaDai = soNgayDangChon > 2;
+
+    const tenBuaAnChon = (id?: number) => (id ? danhSachBuaAn.find((b) => b.id === id)?.tenBuaAn ?? `#${id}` : "Tất cả bữa ăn");
+    const tenDiaDiemChon = (id?: number) => (id ? danhSachDiaDiem.find((d) => d.id === id)?.diaDiem ?? `#${id}` : "Tất cả địa điểm");
+
+    // Phân bổ lại theo đúng bộ lọc ĐANG CHỌN ở form search (không cần bấm
+    // "Tìm kiếm" trước) — 1 ngày + 1 bữa ăn cụ thể thì tính ngay 1 tổ hợp,
+    // chọn khoảng/để trống bữa ăn thì BE tự quét theo khoảng (đã giới hạn
+    // tối đa 2 ngày ở trên) và tự bỏ qua các tổ hợp NGÀY ĐÃ QUA đã tính đủ
+    // từ trước (xem KetQuaDanhGiaPhanBoService.TinhLaiTheoKhoangAsync).
+    const phanBoLai = () => {
+        if (khoangNgayQuaDai) return;
+
+        Modal.confirm({
+            title: "Xác nhận phân bổ lại",
+            icon: <FaExclamationTriangle className="text-amber-500" />,
+            content: (
+                <div className="mt-3">
+                    <p className="mb-3">
+                        Tính lại số liệu đã phân bổ cho <b>{tenBuaAnChon(buaAnNhap)}</b>, <b>{tenDiaDiemChon(diaDiemNhap)}</b>, từ{" "}
+                        <b>{khoangNgayNhap[0].format("DD/MM/YYYY")}</b> đến <b>{khoangNgayNhap[1].format("DD/MM/YYYY")}</b>?
+                    </p>
+                    <p className="text-gray-500 text-sm m-0">
+                        Những ngày đã qua và đã tính đủ từ trước sẽ được tự động bỏ qua, không tính lại.
+                    </p>
+                </div>
+            ),
+            okText: "Phân bổ lại",
+            cancelText: "Hủy",
+            onOk: async () => {
+                try {
+                    const ketQua = await tinhLaiKhoang({
+                        tuNgay: khoangNgayNhap[0].format("YYYY-MM-DD"),
+                        denNgay: khoangNgayNhap[1].format("YYYY-MM-DD"),
+                        id_BuaAn: buaAnNhap,
+                        diaDiemNhaAnId: diaDiemNhap,
+                    }).unwrap();
+
+                    dispatch(setNotify({
+                        typeNotify: "success",
+                        titleNotify: "Đã phân bổ lại",
+                        messageNotify: `Đã tính ${ketQua.soToHopDaTinh} tổ hợp (ngày x bữa ăn), bỏ qua ${ketQua.soToHopBoQua} tổ hợp đã tính đủ, ghi ${ketQua.tongDongGhi} dòng.`,
+                    }));
+                    refetch();
+                } catch (error: any) {
+                    dispatch(setNotify({
+                        typeNotify: "error",
+                        titleNotify: error?.data?.message || "Phân bổ lại thất bại",
+                        messageNotify: "",
+                    }));
+                }
+            },
+        });
+    };
 
     const timKiem = () => {
-        const locMoi = { khoangNgay: khoangNgayNhap, diaDiemLoc: diaDiemNhap, buaAnLoc: buaAnNhap };
+        const locMoi = { khoangNgay: khoangNgayNhap, diaDiemLoc: diaDiemNhap, buaAnLoc: buaAnNhap, trangThaiLoc: trangThaiNhap };
 
         // Bộ lọc không đổi so với lần "Tìm kiếm" trước -> setBoLocApDung sẽ
         // không tạo ra args mới cho RTK Query nên KHÔNG tự fetch lại (dùng
         // cache). Trang này cần bấm "Tìm kiếm" luôn lấy dữ liệu MỚI NHẤT từ
         // server (VD để kiểm tra job Quartz TinhLaiKetQuaDanhGiaPhanBoJob vừa
         // chạy xong có cập nhật số liệu không) kể cả khi không đổi khoảng
-        // ngày/địa điểm/bữa ăn -> chủ động refetch() để bỏ qua cache.
+        // ngày/địa điểm/bữa ăn/trạng thái -> chủ động refetch() để bỏ qua cache.
         const khongDoi =
             boLocApDung.diaDiemLoc === locMoi.diaDiemLoc &&
             boLocApDung.buaAnLoc === locMoi.buaAnLoc &&
+            boLocApDung.trangThaiLoc === locMoi.trangThaiLoc &&
             boLocApDung.khoangNgay[0].isSame(locMoi.khoangNgay[0], "day") &&
             boLocApDung.khoangNgay[1].isSame(locMoi.khoangNgay[1], "day");
 
@@ -209,9 +278,30 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
                         <Select.Option key={b.id} value={b.id}>{b.tenBuaAn}</Select.Option>
                     ))}
                 </Select>
+                <Select
+                    className="w-full sm:w-[180px]"
+                    allowClear
+                    placeholder="-- Tất cả trạng thái --"
+                    value={trangThaiNhap}
+                    onChange={(value) => setTrangThaiNhap(value)}
+                >
+                    <Select.Option value={true}>Đã co giãn</Select.Option>
+                    <Select.Option value={false}>Giữ nguyên</Select.Option>
+                </Select>
                 <Button type="default" icon={<IoSearchOutline />} className="text-blue-600 border-blue-600" onClick={timKiem}>
                     Tìm kiếm
                 </Button>
+                <Tooltip title={khoangNgayQuaDai ? "Chỉ được chọn khoảng thời gian tối đa 2 ngày để phân bổ lại" : ""}>
+                    <Button
+                        type="primary"
+                        icon={<FaCalculator />}
+                        loading={dangPhanBo}
+                        disabled={khoangNgayQuaDai}
+                        onClick={phanBoLai}
+                    >
+                        Phân bổ lại
+                    </Button>
+                </Tooltip>
             </div>
 
             <Table
