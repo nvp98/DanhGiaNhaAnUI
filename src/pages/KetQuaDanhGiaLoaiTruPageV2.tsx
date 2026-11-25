@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button, DatePicker, Form, Input, Modal, Popconfirm, Select, Table, TableColumnsType } from "antd";
 import { useForm } from "antd/es/form/Form";
 import dayjs, { Dayjs } from "dayjs";
-import { FaExclamationTriangle, FaPlus, FaTrash } from "react-icons/fa";
+import { FaExclamationTriangle, FaFileExcel, FaPlus, FaTrash } from "react-icons/fa";
 import { IoSearchOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
@@ -11,6 +11,7 @@ import LayoutV2Component from "../components/LayoutV2Component";
 import KetQuaDanhGiaLoaiTruModel from "../models/KetQuaDanhGiaLoaiTruModel";
 import {
     useDanhSachKetQuaDanhGiaLoaiTruQuery,
+    useLazyXuatKetQuaDanhGiaLoaiTruQuery,
     useThemKetQuaDanhGiaLoaiTruMutation,
     useXoaKetQuaDanhGiaLoaiTruMutation,
 } from "../services/ketQuaDanhGiaLoaiTruApiV2";
@@ -18,6 +19,7 @@ import { useDanhSachDiaDiemNhaAnQuery } from "../services/diaDiemNhaAnApiV2";
 import { useDanhSachBuaAnQuery } from "../services/buaAnApi";
 import { setNotify } from "../store/notifycationSlide";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { xuatExcelKetQuaDanhGiaLoaiTru } from "../utils/xuatExcelKetQuaDanhGiaLoaiTru";
 
 const { RangePicker } = DatePicker;
 
@@ -43,13 +45,16 @@ const KetQuaDanhGiaLoaiTruPageV2: React.FC = () => {
     // Cùng pattern "Tìm kiếm" của KetQuaDanhGiaPhanBoPageV2 — ô nhập tách
     // khỏi bộ lọc áp dụng, chỉ gọi API khi bấm nút.
     const [khoangNgayNhap, setKhoangNgayNhap] = useState<[Dayjs, Dayjs]>(macDinhKhoangNgay);
-    const [diaDiemNhap, setDiaDiemNhap] = useState<number | undefined>(undefined);
+    // Mảng rỗng = "Tất cả địa điểm" (Select mode="multiple").
+    const [diaDiemNhap, setDiaDiemNhap] = useState<number[]>([]);
     const [buaAnNhap, setBuaAnNhap] = useState<number | undefined>(undefined);
 
     const [boLocApDung, setBoLocApDung] = useState({
         khoangNgay: macDinhKhoangNgay,
-        diaDiemLoc: undefined as number | undefined,
+        diaDiemLoc: [] as number[],
         buaAnLoc: undefined as number | undefined,
+        page: 1,
+        pageSize: 20,
     });
 
     const { data: danhSachDiaDiem = [] } = useDanhSachDiaDiemNhaAnQuery();
@@ -59,20 +64,64 @@ const KetQuaDanhGiaLoaiTruPageV2: React.FC = () => {
         .sort((a, b) => a.codeBuaAn.localeCompare(b.codeBuaAn));
     const diaDiemChon = danhSachDiaDiem.filter((dd) => dd.isActive);
 
-    const { data: danhSach = [], isFetching } = useDanhSachKetQuaDanhGiaLoaiTruQuery({
-        diaDiemNhaAnId: boLocApDung.diaDiemLoc,
+    const { data, isFetching } = useDanhSachKetQuaDanhGiaLoaiTruQuery({
+        diaDiemNhaAnIds: boLocApDung.diaDiemLoc.length > 0 ? boLocApDung.diaDiemLoc : undefined,
         idBuaAn: boLocApDung.buaAnLoc,
         tuNgay: boLocApDung.khoangNgay[0].format("YYYY-MM-DD"),
         denNgay: boLocApDung.khoangNgay[1].format("YYYY-MM-DD"),
+        page: boLocApDung.page,
+        pageSize: boLocApDung.pageSize,
     });
+    const danhSach = data?.items ?? [];
     const [themDanhDau, { isLoading: dangThem }] = useThemKetQuaDanhGiaLoaiTruMutation();
     const [xoaDanhDau] = useXoaKetQuaDanhGiaLoaiTruMutation();
+    const [goiLayDanhSachXuat] = useLazyXuatKetQuaDanhGiaLoaiTruQuery();
 
     const [moModal, setMoModal] = useState(false);
+    const [dangXuatExcel, setDangXuatExcel] = useState(false);
     const [form] = useForm<GiaTriForm>();
 
+    // Bấm "Tìm kiếm" luôn quay về trang 1 — bộ lọc mới có thể cho ra ít
+    // trang hơn trang đang xem (cùng pattern Phieu1DanhSachPage.tsx).
     const timKiem = () => {
-        setBoLocApDung({ khoangNgay: khoangNgayNhap, diaDiemLoc: diaDiemNhap, buaAnLoc: buaAnNhap });
+        setBoLocApDung((prev) => ({
+            khoangNgay: khoangNgayNhap, diaDiemLoc: diaDiemNhap, buaAnLoc: buaAnNhap,
+            page: 1, pageSize: prev.pageSize,
+        }));
+    };
+
+    // Xuất Excel: KHÔNG dùng lại "danhSach" đang hiển thị trên bảng — gọi
+    // tay API lấy dữ liệu MỚI NHẤT theo đúng điều kiện lọc ĐANG CHỌN ở form
+    // search (ô nhập, không cần bấm "Tìm kiếm" trước, cùng pattern nút
+    // "Phân bổ lại" ở KetQuaDanhGiaPhanBoPageV2.tsx).
+    const xuLyXuatExcel = async () => {
+        setDangXuatExcel(true);
+        try {
+            const ketQua = await goiLayDanhSachXuat({
+                diaDiemNhaAnIds: diaDiemNhap.length > 0 ? diaDiemNhap : undefined,
+                idBuaAn: buaAnNhap,
+                tuNgay: khoangNgayNhap[0].format("YYYY-MM-DD"),
+                denNgay: khoangNgayNhap[1].format("YYYY-MM-DD"),
+            }).unwrap();
+
+            if (ketQua.length === 0) {
+                dispatch(setNotify({ typeNotify: "warning", titleNotify: "Không có dữ liệu khớp điều kiện lọc để xuất", messageNotify: "" }));
+                return;
+            }
+
+            await xuatExcelKetQuaDanhGiaLoaiTru(ketQua, {
+                tuNgay: khoangNgayNhap[0].format("DD/MM/YYYY"),
+                denNgay: khoangNgayNhap[1].format("DD/MM/YYYY"),
+                tenBuaAnLoc: buaAnNhap ? tenBuaAn(buaAnNhap) : "Tất cả bữa ăn",
+                tenDiaDiemLoc: diaDiemNhap.length > 0
+                    ? diaDiemNhap.map((id) => tenDiaDiem(id)).join(", ")
+                    : "Tất cả địa điểm",
+            });
+        } catch {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Excel thất bại", messageNotify: "" }));
+        } finally {
+            setDangXuatExcel(false);
+        }
     };
 
     React.useEffect(() => {
@@ -237,8 +286,10 @@ const KetQuaDanhGiaLoaiTruPageV2: React.FC = () => {
                     }}
                 />
                 <Select
-                    className="w-full sm:w-[220px]"
+                    className="w-full sm:w-[280px]"
+                    mode="multiple"
                     allowClear
+                    maxTagCount="responsive"
                     placeholder="-- Tất cả địa điểm --"
                     value={diaDiemNhap}
                     onChange={(value) => setDiaDiemNhap(value)}
@@ -261,6 +312,13 @@ const KetQuaDanhGiaLoaiTruPageV2: React.FC = () => {
                 <Button type="default" icon={<IoSearchOutline />} className="text-blue-600 border-blue-600" onClick={timKiem}>
                     Tìm kiếm
                 </Button>
+                <Button
+                    icon={<FaFileExcel />}
+                    loading={dangXuatExcel}
+                    onClick={xuLyXuatExcel}
+                >
+                    Xuất Excel
+                </Button>
             </div>
 
             <Table
@@ -269,6 +327,14 @@ const KetQuaDanhGiaLoaiTruPageV2: React.FC = () => {
                 columns={columns}
                 dataSource={danhSach}
                 scroll={{ x: 1000 }}
+                pagination={{
+                    current: boLocApDung.page,
+                    pageSize: boLocApDung.pageSize,
+                    total: data?.totalCount ?? 0,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tổng ${total} dòng`,
+                    onChange: (page, pageSize) => setBoLocApDung((prev) => ({ ...prev, page, pageSize })),
+                }}
             />
 
             <Modal

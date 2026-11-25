@@ -326,6 +326,12 @@ const Phieu1FormPage: React.FC = () => {
         phieu.trangThai === "NHAP" ||
         phieu.trangThai === "TU_CHOI";
 
+    // Khóa thu hồi theo tháng: tài khoản không phải Admin chỉ thu hồi được
+    // phiếu LẬP (ngayTao) trong CÙNG tháng/năm hiện tại — sang tháng mới,
+    // phiếu tháng trước chỉ Admin được thu hồi (xem Phieu1Service.ThuHoiAsync).
+    const chanThuHoiTheoThang =
+        !authV2.nguoiDung?.laAdmin && !!phieu && !dayjs(phieu.ngayTao).isSame(dayjs(), "month");
+
     const tenTieuChi = (tieuChiId?: number) =>
         danhSachTieuChiTraTen.find((tc: TieuChiModel) => tc.id === tieuChiId)?.noiDung ?? "";
 
@@ -814,6 +820,8 @@ const Phieu1FormPage: React.FC = () => {
                 <PhieuHeader
                     maPhieu="PHIEU1"
                     soHieu={phieu?.soHieu}
+                    hienSoHieuTrenCung={false}
+                    className="phieu1-header"
                     title="PHIẾU KIỂM TRA CÔNG TÁC VSATTP"
                     subtitle={`TẠI BẾP ĂN ${tenBepAnHienTai}`}
                     infoItems={[
@@ -821,6 +829,10 @@ const Phieu1FormPage: React.FC = () => {
                         {
                             label: "Ngày kiểm tra:",
                             value: ngayKiemTra.format("DD/MM/YYYY"),
+                        },
+                        {
+                            label: "Số hiệu:",
+                            value: phieu?.soHieu || "........................",
                         },
                     ]}
                 />
@@ -1008,7 +1020,7 @@ const Phieu1FormPage: React.FC = () => {
                                     <br />
                                     đạt/Tổng số tiêu chí)
                                 </th>
-                                <th className="kl-cot-ket-luan">Kết luận</th>
+                                {/* <th className="kl-cot-ket-luan">Kết luận</th> */}
                                 <th className="kl-cot-diem">
                                     Điểm
                                     <br />
@@ -1034,13 +1046,13 @@ const Phieu1FormPage: React.FC = () => {
                                         })
                                         : "--"}
                                 </td>
-                                <td className="kl-center kl-value">
+                                {/* <td className="kl-center kl-value">
                                     {ketLuanTamThoi.ketLuan === "DAT"
                                         ? "Đạt"
                                         : ketLuanTamThoi.ketLuan === "KHONG_DAT"
                                             ? "Không đạt"
                                             : "--"}
-                                </td>
+                                </td> */}
                                 <td className="kl-center kl-value">
                                     {ketLuanTamThoi.diem !== null
                                         ? ketLuanTamThoi.diem.toLocaleString("vi-VN", {
@@ -1079,14 +1091,10 @@ const Phieu1FormPage: React.FC = () => {
                         <div className="quy-uoc-title">Quy ước:</div>
                         <div className="quy-uoc-item">
                             - Trường hợp tỷ lệ % tiêu chí đạt &lt;{" "}
-                            <strong>50%</strong>, kết luận kết quả đánh giá{" "}
-                            <strong>KHÔNG ĐẠT</strong>. Điểm đánh giá ={" "}
-                            <strong>0</strong> điểm.
+                            <strong>50%</strong>. Điểm đánh giá = 0 điểm.
                         </div>
                         <div className="quy-uoc-item">
-                            - Trường hợp tỷ lệ % tiêu chí đạt ≥ <strong>50%</strong>,
-                            kết luận kết quả đánh giá <strong>ĐẠT</strong>. Điểm đánh
-                            giá = Tỷ lệ % tiêu chí đạt *5.
+                            - Trường hợp tỷ lệ % tiêu chí đạt ≥ <strong>50%</strong>. Điểm đánh giá = Tỷ lệ % tiêu chí đạt *5.
                         </div>
                     </div>
 
@@ -1131,6 +1139,7 @@ const Phieu1FormPage: React.FC = () => {
                 dangLuu={dangThem || dangSua}
                 dangGuiKy={dangGuiKy || dangXuLyGuiKy}
                 dangThuHoi={dangThuHoi}
+                chanThuHoiTheoThang={chanThuHoiTheoThang}
                 onLuu={luuPhieu}
                 onGuiKy={xuLyGuiKy}
                 onXoa={xuLyXoaPhieu}

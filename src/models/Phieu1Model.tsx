@@ -16,4 +16,8 @@ export default interface Phieu1Model {
     // ký mới nhất), resolve sẵn từ backend. NULL khi chưa ai ký bước tương ứng.
     tenNhaThauDaKy?: string;
     tenNguoiDaKy?: string;
+    // Ngày giờ ký tương ứng với tenNhaThauDaKy/tenNguoiDaKy — NULL khi chưa
+    // ai ký bước tương ứng.
+    ngayNhaThauDaKy?: string;
+    ngayNguoiDaKy?: string;
 }

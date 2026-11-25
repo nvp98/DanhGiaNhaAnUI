@@ -318,7 +318,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
         v === null ? "" : v.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     const diemHienThi = (v: number | null) =>
         v === null ? "" : v.toLocaleString("vi-VN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const ketLuanHienThi = (v: string | null) => (v === "DAT" ? "Đạt" : v === "KHONG_DAT" ? "Không đạt" : "");
+    // const ketLuanHienThi = (v: string | null) => (v === "DAT" ? "Đạt" : v === "KHONG_DAT" ? "Không đạt" : "");
 
     const ketLuanRows: TableRow[] = [
         new TableRow({
@@ -328,7 +328,6 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                 oOBang("Số lượng tiêu chí đạt", { dam: true }),
                 oOBang("Tổng số lượng tiêu chí đánh giá", { dam: true }),
                 oOBang("Tỷ lệ % tiêu chí đạt", { dam: true }),
-                oOBang("Kết luận", { dam: true }),
                 oOBang("Điểm đánh giá", { dam: true }),
                 oOBang("Ghi chú", { dam: true }),
             ],
@@ -339,7 +338,6 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                 oOBang(String(ketLuan.soDat)),
                 oOBang(String(ketLuan.tongSo)),
                 oOBang(phanTramHienThi(ketLuan.tyLe)),
-                oOBang(ketLuanHienThi(ketLuan.ketLuan)),
                 oOBang(diemHienThi(ketLuan.diem)),
                 oOBang(dichHtmlSangDoan(ketLuan.ghiChuHtml), { canTrai: true }),
             ],
@@ -497,12 +495,21 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                 footers: { default: footer },
                 children: [
                     headerTable,
-                    oDoan(`Số: ${soHieu || "........................"}`, { co: 22, canhTruoc: 100, canhSau: 100 }),
+                    
                     oDoan("PHIẾU KIỂM TRA CÔNG TÁC VSATTP", { dam: true, canGiua: true, co: CO_CHU_TIEU_DE, canhSau: 0 }),
                     oDoan(`TẠI BẾP ĂN ${tenBepAn?.toLocaleUpperCase("vi-VN") ||"........................"}`, { dam: true, canGiua: true, co: CO_CHU_TIEU_DE, canhSau: 200 }),
 
-                    oDoan(`Nhà thầu: ${tenNhaThau || "........................"}`, { dam: true, canGiua: true }),
-                    oDoan(`Ngày kiểm tra: ${ngayKiemTra}`, { canhSau: 200, dam: true, canGiua: true }),
+                    new Paragraph({
+                        alignment: AlignmentType.CENTER,
+                        spacing: { after: 200 },
+                        children: [
+                            oChu(`Nhà thầu: ${tenNhaThau || "........................"}`, { dam: true }),
+                            oChu("      "),
+                            oChu(`Ngày kiểm tra: ${ngayKiemTra}`, { dam: true }),
+                            oChu("      "),
+                            oChu(`Số hiệu: ${soHieu || "........................"}`, { dam: true }),
+                        ],
+                    }),
 
                     oDoan("1. Thực trạng đánh giá", { dam: true, canhSau: 100 }),
                     new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, borders: VIEN_BANG, rows: checklistRows }),
@@ -516,11 +523,7 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                         children: [
                             oChu("- Trường hợp tỷ lệ % tiêu chí đạt < "),
                             oChu("50%", { dam: true }),
-                            oChu(", kết luận kết quả đánh giá "),
-                            oChu("KHÔNG ĐẠT", { dam: true }),
-                            oChu(". Điểm đánh giá = "),
-                            oChu("0", { dam: true }),
-                            oChu(" điểm."),
+                            oChu(". Điểm đánh giá = 0 điểm."),
                         ],
                     }),
                     new Paragraph({
@@ -528,8 +531,6 @@ const taoBlobDocxPhieu1 = async (params: XuatWordPhieu1Params): Promise<{ blob: 
                         children: [
                             oChu("- Trường hợp tỷ lệ % tiêu chí đạt ≥ "),
                             oChu("50%", { dam: true }),
-                            oChu(", kết luận kết quả đánh giá "),
-                            oChu("ĐẠT", { dam: true }),
                             oChu(". Điểm đánh giá = Tỷ lệ % tiêu chí đạt *5."),
                         ],
                     }),

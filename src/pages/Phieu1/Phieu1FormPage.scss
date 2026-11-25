@@ -1,6 +1,21 @@
 @use "../../styles/phieu" as *;
 
 /* ============================================================
+   HEADER PHIẾU 1 — Nhà thầu / Ngày kiểm tra / Số hiệu cùng 1 dòng
+   (chỉ riêng Phiếu 1, các phiếu khác vẫn giữ layout 2 cột cũ)
+   ============================================================ */
+
+.phieu-header.phieu1-header .phieu-header-info {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+@media (max-width: 900px) {
+    .phieu-header.phieu1-header .phieu-header-info {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ============================================================
    TÙY BIẾN CỘT CHO PHIẾU 1 (VSATTP)
    ============================================================ */
 

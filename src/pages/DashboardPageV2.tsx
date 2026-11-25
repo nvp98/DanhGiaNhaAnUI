@@ -1,17 +1,18 @@
 import React, { useEffect, useMemo, useState } from "react";
 import LayoutV2Component from "../components/LayoutV2Component";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { RootType } from "../store/types";
 import { useNavigate } from "react-router-dom";
-import { DatePicker, Select, Spin } from "antd";
+import { Button, DatePicker, Modal, Select, Spin } from "antd";
 import dayjs, { Dayjs } from "dayjs";
 import isoWeek from "dayjs/plugin/isoWeek";
 
 dayjs.extend(isoWeek);
-import { FaChartLine } from "react-icons/fa";
+import { FaChartLine, FaSync } from "react-icons/fa";
 import { useDanhSachDiaDiemNhaAnQuery } from "../services/diaDiemNhaAnApiV2";
 import { useDanhSachBuaAnQuery } from "../services/buaAnApi";
 import { useLayThongKeDashboardQuery } from "../services/dashboardApiV2";
+import { useSyncDataRiceMutation } from "../services/riceDataApi";
 import { DashboardFilterParams } from "../models/DashboardModel";
 import NhaAnModel from "../models/NhaAnModel";
 import BuaAnModel from "../models/BuaAnModel";
@@ -20,6 +21,12 @@ import PieChartDanhGiaComponent from "../components/PieChartDanhGiaComponent";
 import BarChartTyLeNgayComponent from "../components/BarChartTyLeNgayComponent";
 import BarChartTheoDiaDiemComponent from "../components/BarChartTheoDiaDiemComponent";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { setNotify } from "../store/notifycationSlide";
+
+// Khoảng ngày tối đa cho nút "Đồng bộ dữ liệu cơm" — khớp giới hạn BE
+// (RiceDataController.SyncData: mỗi ngày gọi 1 lần API ngoài cho mỗi tổ hợp
+// địa điểm x bữa ăn, khoảng dài dễ quá tải API ngoài).
+const SO_NGAY_TOI_DA_DONG_BO = 5;
 
 const { RangePicker } = DatePicker;
 
@@ -91,6 +98,7 @@ const tinhDanhSachThang = (tuNgay: Dayjs, denNgay: Dayjs): ThangTrongKhoang[] =>
 // KetQuaDanhGia/DuLieuCom có tới hàng triệu dòng).
 const DashboardPageV2: React.FC = () => {
     const authV2 = useSelector((state: RootType) => state.authV2);
+    const dispatch = useDispatch();
     const navigator = useNavigate();
 
     // State đang chọn trên form filter — CHƯA gọi API ngay, debounce 500ms
@@ -133,6 +141,80 @@ const DashboardPageV2: React.FC = () => {
     });
 
     const { data: thongKe, isFetching } = useLayThongKeDashboardQuery(taoThamSoLoc(boLocDaApDung));
+
+    // State RIÊNG cho modal "Đồng bộ dữ liệu cơm" — độc lập với bộ lọc
+    // Dashboard ở trên (chỉ dùng Ngày/Địa điểm/Bữa ăn, bỏ qua Tháng/Tuần vì 2
+    // ô đó chỉ suy ra "Ngày", không phải điều kiện lọc riêng cho hành động
+    // đồng bộ). Mặc định 1 ngày (hôm nay) để tránh vô tình đồng bộ nhiều.
+    const [dongBoModalMo, setDongBoModalMo] = useState(false);
+    const [dongBoDateRange, setDongBoDateRange] = useState<[Dayjs, Dayjs]>([dayjs().startOf("day"), dayjs().endOf("day")]);
+    const [dongBoMocNeo, setDongBoMocNeo] = useState<Dayjs | null>(null);
+    const [dongBoDiaDiemIds, setDongBoDiaDiemIds] = useState<number[]>([TAT_CA_DIA_DIEM]);
+    const [dongBoCodeBuaAnList, setDongBoCodeBuaAnList] = useState<string[]>([]);
+    const [syncDataRice, { isLoading: dangDongBo }] = useSyncDataRiceMutation();
+
+    const xuLyChonDiaDiemDongBo = (vals: number[]) => {
+        const vuaThem = vals.filter((v) => !dongBoDiaDiemIds.includes(v));
+        if (vuaThem.includes(TAT_CA_DIA_DIEM)) {
+            setDongBoDiaDiemIds([TAT_CA_DIA_DIEM]);
+            return;
+        }
+        const diaDiemCuThe = vals.filter((v) => v !== TAT_CA_DIA_DIEM);
+        setDongBoDiaDiemIds(diaDiemCuThe.length > 0 ? diaDiemCuThe : [TAT_CA_DIA_DIEM]);
+    };
+
+    // Chặn RangePicker chọn quá SO_NGAY_TOI_DA_DONG_BO ngày tính từ mốc neo
+    // (ngày đầu tiên vừa bấm) — pattern chuẩn antd RangePicker.disabledDate
+    // kết hợp onCalendarChange.
+    const ngayBiChanDongBo = (current: Dayjs) => {
+        if (!dongBoMocNeo) return false;
+        return Math.abs(current.diff(dongBoMocNeo, "day")) > SO_NGAY_TOI_DA_DONG_BO - 1;
+    };
+
+    const dongBoDuLieuCom = async () => {
+        const soNgay = dongBoDateRange[1].startOf("day").diff(dongBoDateRange[0].startOf("day"), "day") + 1;
+        if (soNgay > SO_NGAY_TOI_DA_DONG_BO) {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: `Khoảng ngày tối đa ${SO_NGAY_TOI_DA_DONG_BO} ngày`, messageNotify: "" }));
+            return;
+        }
+
+        try {
+            const ketQua = await syncDataRice({
+                tuNgay: dongBoDateRange[0].format("YYYY-MM-DD"),
+                denNgay: dongBoDateRange[1].format("YYYY-MM-DD"),
+                diaDiemIds: dongBoDiaDiemIds.includes(TAT_CA_DIA_DIEM) ? undefined : dongBoDiaDiemIds,
+                codeBuaAnList: dongBoCodeBuaAnList.length > 0 ? dongBoCodeBuaAnList : undefined,
+            }).unwrap();
+
+            // BE chạy hết mọi tổ hợp (ngày x địa điểm x bữa ăn) rồi mới trả
+            // kết quả, không bỏ ngang khi 1 tổ hợp lỗi -> phân 3 mức thay vì
+            // chỉ thành công/thất bại, tránh báo "thất bại" dù phần lớn đã
+            // đồng bộ được.
+            if (ketQua.soToHopLoi === 0) {
+                dispatch(setNotify({ typeNotify: "success", titleNotify: `Đồng bộ dữ liệu cơm thành công (${ketQua.soToHopThanhCong} tổ hợp)`, messageNotify: "" }));
+                setDongBoModalMo(false);
+            } else if (ketQua.soToHopThanhCong > 0) {
+                dispatch(setNotify({
+                    typeNotify: "warning",
+                    titleNotify: `Đồng bộ một phần: ${ketQua.soToHopThanhCong} tổ hợp thành công, ${ketQua.soToHopLoi} tổ hợp lỗi`,
+                    messageNotify: ketQua.thongBaoLoi.slice(0, 3).join("; "),
+                }));
+                setDongBoModalMo(false);
+            } else {
+                dispatch(setNotify({
+                    typeNotify: "error",
+                    titleNotify: "Đồng bộ dữ liệu cơm thất bại",
+                    messageNotify: ketQua.thongBaoLoi.slice(0, 3).join("; "),
+                }));
+            }
+        } catch (error: any) {
+            dispatch(setNotify({
+                typeNotify: "error",
+                titleNotify: error?.data?.message || "Đồng bộ dữ liệu cơm thất bại",
+                messageNotify: "",
+            }));
+        }
+    };
 
     // Debounce 500ms: đổi filter liên tục (VD chọn lần lượt nhiều địa điểm)
     // chỉ đổ sang boLocDaApDung — và vì vậy chỉ gọi API — đúng 1 lần, sau khi
@@ -187,12 +269,74 @@ const DashboardPageV2: React.FC = () => {
 
     return <LayoutV2Component>
         <div className="flex flex-col" style={{ height: `calc(100vh - ${CHIEU_CAO_DA_DUNG}px)` }}>
-            <div className="flex justify-start items-center gap-2 mb-3 shrink-0">
-                <div className="w-[36px] h-[36px] flex justify-center items-center bg-gray-100 rounded-md shrink-0">
-                    <FaChartLine className="text-lg text-black" />
+            <div className="flex justify-between items-center gap-2 mb-3 shrink-0">
+                <div className="flex justify-start items-center gap-2">
+                    <div className="w-[36px] h-[36px] flex justify-center items-center bg-gray-100 rounded-md shrink-0">
+                        <FaChartLine className="text-lg text-black" />
+                    </div>
+                    <h2 className="font-bold text-lg text-zinc-700">BÁO CÁO KẾT QUẢ HỆ THỐNG ĐÁNH GIÁ CHẤT LƯỢNG PHỤC VỤ NHÀ ĂN</h2>
                 </div>
-                <h2 className="font-bold text-lg text-zinc-700">BÁO CÁO KẾT QUẢ HỆ THỐNG ĐÁNH GIÁ CHẤT LƯỢNG PHỤC VỤ NHÀ ĂN</h2>
+                <Button icon={<FaSync />} onClick={() => setDongBoModalMo(true)}>
+                    Đồng bộ dữ liệu cơm
+                </Button>
             </div>
+
+            <Modal
+                title="Đồng bộ dữ liệu cơm"
+                open={dongBoModalMo}
+                onCancel={() => setDongBoModalMo(false)}
+                onOk={dongBoDuLieuCom}
+                okText="Đồng bộ"
+                cancelText="Hủy"
+                confirmLoading={dangDongBo}
+            >
+                <div className="flex flex-col gap-3 mt-2">
+                    <div>
+                        <div className="text-xs font-bold text-zinc-600 mb-0.5 uppercase">Ngày (tối đa {SO_NGAY_TOI_DA_DONG_BO} ngày)</div>
+                        <RangePicker
+                            className="w-full"
+                            format="DD/MM/YYYY"
+                            value={dongBoDateRange}
+                            disabledDate={ngayBiChanDongBo}
+                            onCalendarChange={(vals) => setDongBoMocNeo(vals?.[0] ?? null)}
+                            onChange={(vals) => {
+                                if (vals && vals[0] && vals[1]) {
+                                    setDongBoDateRange([vals[0].startOf("day"), vals[1].endOf("day")]);
+                                }
+                            }}
+                        />
+                    </div>
+
+                    <div>
+                        <div className="text-xs font-bold text-zinc-600 mb-0.5 uppercase">Địa điểm nhà ăn</div>
+                        <Select
+                            className="w-full"
+                            mode="multiple"
+                            allowClear
+                            placeholder="Tất cả"
+                            value={dongBoDiaDiemIds}
+                            onChange={xuLyChonDiaDiemDongBo}
+                            options={[
+                                { label: "Tất cả", value: TAT_CA_DIA_DIEM },
+                                ...(dataNhaAn ?? []).filter((x: NhaAnModel) => x.isActive).map((x: NhaAnModel) => ({ label: x.diaDiem, value: x.id })),
+                            ]}
+                        />
+                    </div>
+
+                    <div>
+                        <div className="text-xs font-bold text-zinc-600 mb-0.5 uppercase">Bữa ăn</div>
+                        <Select
+                            className="w-full"
+                            mode="multiple"
+                            allowClear
+                            placeholder="Tất cả"
+                            value={dongBoCodeBuaAnList}
+                            onChange={setDongBoCodeBuaAnList}
+                            options={(dataBuaAn ?? []).map((x: BuaAnModel) => ({ label: x.tenBuaAn, value: x.codeBuaAn }))}
+                        />
+                    </div>
+                </div>
+            </Modal>
 
             <div className="flex-1 min-h-0 flex flex-col gap-3">
                 {isFetching && !thongKe ? (

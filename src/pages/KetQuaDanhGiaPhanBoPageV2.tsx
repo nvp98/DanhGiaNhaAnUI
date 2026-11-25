@@ -1,18 +1,23 @@
 import React, { useState } from "react";
 import { Button, DatePicker, Modal, Select, Table, TableColumnsType, Tag, Tooltip } from "antd";
 import dayjs, { Dayjs } from "dayjs";
-import { FaBalanceScaleRight, FaCalculator, FaExclamationTriangle } from "react-icons/fa";
+import { FaBalanceScaleRight, FaCalculator, FaExclamationTriangle, FaFileExcel } from "react-icons/fa";
 import { IoSearchOutline } from "react-icons/io5";
 import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { RootType } from "../store/types";
 import LayoutV2Component from "../components/LayoutV2Component";
 import KetQuaDanhGiaPhanBoModel from "../models/KetQuaDanhGiaPhanBoModel";
-import { useDanhSachKetQuaDanhGiaPhanBoQuery, useTinhLaiKhoangKetQuaDanhGiaPhanBoMutation } from "../services/ketQuaDanhGiaPhanBoApiV2";
+import {
+    useDanhSachKetQuaDanhGiaPhanBoQuery,
+    useLazyXuatKetQuaDanhGiaPhanBoQuery,
+    useTinhLaiKhoangKetQuaDanhGiaPhanBoMutation,
+} from "../services/ketQuaDanhGiaPhanBoApiV2";
 import { useDanhSachDiaDiemNhaAnQuery } from "../services/diaDiemNhaAnApiV2";
 import { useDanhSachBuaAnQuery } from "../services/buaAnApi";
 import { setNotify } from "../store/notifycationSlide";
 import { coQuyen, MA_QUYEN } from "../utils/quyenV2";
+import { xuatExcelKetQuaDanhGiaPhanBo } from "../utils/xuatExcelKetQuaDanhGiaPhanBo";
 
 const { RangePicker } = DatePicker;
 
@@ -32,7 +37,9 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
     // để gọi API) — chỉ đồng bộ khi bấm "Tìm kiếm", tránh gọi API liên tục
     // mỗi lần đổi 1 ô lọc (cùng pattern nút "Tìm kiếm" ở LichSuKhaoSatPageV2).
     const [khoangNgayNhap, setKhoangNgayNhap] = useState<[Dayjs, Dayjs]>(macDinhKhoangNgay);
-    const [diaDiemNhap, setDiaDiemNhap] = useState<number | undefined>(undefined);
+    // Mảng rỗng = "Tất cả địa điểm" (Select mode="multiple"). Nút "Phân bổ
+    // lại" (BE chỉ nhận 1 id) bị khóa khi chọn nhiều hơn 1 — xem khoaPhanBoLaiDoChonNhieuDiaDiem.
+    const [diaDiemNhap, setDiaDiemNhap] = useState<number[]>([]);
     const [buaAnNhap, setBuaAnNhap] = useState<number | undefined>(undefined);
     // true = "Đã co giãn" (Tong != TongGoc), false = "Giữ nguyên", undefined
     // = tất cả trạng thái.
@@ -40,9 +47,11 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
 
     const [boLocApDung, setBoLocApDung] = useState({
         khoangNgay: macDinhKhoangNgay,
-        diaDiemLoc: undefined as number | undefined,
+        diaDiemLoc: [] as number[],
         buaAnLoc: undefined as number | undefined,
         trangThaiLoc: undefined as boolean | undefined,
+        page: 1,
+        pageSize: 20,
     });
 
     const { data: danhSachDiaDiem = [] } = useDanhSachDiaDiemNhaAnQuery();
@@ -51,14 +60,19 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
         .filter((b) => b.codeBuaAn.toUpperCase() !== "ALL")
         .sort((a, b) => a.codeBuaAn.localeCompare(b.codeBuaAn));
 
-    const { data: danhSach = [], isFetching, refetch } = useDanhSachKetQuaDanhGiaPhanBoQuery({
-        diaDiemNhaAnId: boLocApDung.diaDiemLoc,
+    const { data, isFetching, refetch } = useDanhSachKetQuaDanhGiaPhanBoQuery({
+        diaDiemNhaAnIds: boLocApDung.diaDiemLoc.length > 0 ? boLocApDung.diaDiemLoc : undefined,
         idBuaAn: boLocApDung.buaAnLoc,
         tuNgay: boLocApDung.khoangNgay[0].format("YYYY-MM-DD"),
         denNgay: boLocApDung.khoangNgay[1].format("YYYY-MM-DD"),
         daCoGian: boLocApDung.trangThaiLoc,
+        page: boLocApDung.page,
+        pageSize: boLocApDung.pageSize,
     });
+    const danhSach = data?.items ?? [];
     const [tinhLaiKhoang, { isLoading: dangPhanBo }] = useTinhLaiKhoangKetQuaDanhGiaPhanBoMutation();
+    const [goiLayDanhSachXuat] = useLazyXuatKetQuaDanhGiaPhanBoQuery();
+    const [dangXuatExcel, setDangXuatExcel] = useState(false);
 
     // Số ngày đang chọn ở form search (ô nhập, chưa cần bấm "Tìm kiếm") —
     // dùng để chặn nút "Phân bổ lại" khi khoảng ngày quá 2 ngày (quét hết
@@ -66,6 +80,11 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
     // nhận nghiệp vụ 2026-10-19).
     const soNgayDangChon = khoangNgayNhap[1].startOf("day").diff(khoangNgayNhap[0].startOf("day"), "day") + 1;
     const khoangNgayQuaDai = soNgayDangChon > 2;
+    // "Phân bổ lại" (POST tinh-lai-khoang) chỉ nhận 1 địa điểm — chọn nhiều
+    // hơn 1 ở ô lọc (multi-select) thì khóa nút này lại, tránh hiểu nhầm là
+    // phân bổ lại cho TẤT CẢ các địa điểm đang chọn.
+    const khoaPhanBoLaiDoChonNhieuDiaDiem = diaDiemNhap.length > 1;
+    const diaDiemDonLePhanBo = diaDiemNhap.length === 1 ? diaDiemNhap[0] : undefined;
 
     const tenBuaAnChon = (id?: number) => (id ? danhSachBuaAn.find((b) => b.id === id)?.tenBuaAn ?? `#${id}` : "Tất cả bữa ăn");
     const tenDiaDiemChon = (id?: number) => (id ? danhSachDiaDiem.find((d) => d.id === id)?.diaDiem ?? `#${id}` : "Tất cả địa điểm");
@@ -76,7 +95,7 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
     // tối đa 2 ngày ở trên) và tự bỏ qua các tổ hợp NGÀY ĐÃ QUA đã tính đủ
     // từ trước (xem KetQuaDanhGiaPhanBoService.TinhLaiTheoKhoangAsync).
     const phanBoLai = () => {
-        if (khoangNgayQuaDai) return;
+        if (khoangNgayQuaDai || khoaPhanBoLaiDoChonNhieuDiaDiem) return;
 
         Modal.confirm({
             title: "Xác nhận phân bổ lại",
@@ -84,7 +103,7 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
             content: (
                 <div className="mt-3">
                     <p className="mb-3">
-                        Tính lại số liệu đã phân bổ cho <b>{tenBuaAnChon(buaAnNhap)}</b>, <b>{tenDiaDiemChon(diaDiemNhap)}</b>, từ{" "}
+                        Tính lại số liệu đã phân bổ cho <b>{tenBuaAnChon(buaAnNhap)}</b>, <b>{tenDiaDiemChon(diaDiemDonLePhanBo)}</b>, từ{" "}
                         <b>{khoangNgayNhap[0].format("DD/MM/YYYY")}</b> đến <b>{khoangNgayNhap[1].format("DD/MM/YYYY")}</b>?
                     </p>
                     <p className="text-gray-500 text-sm m-0">
@@ -100,7 +119,7 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
                         tuNgay: khoangNgayNhap[0].format("YYYY-MM-DD"),
                         denNgay: khoangNgayNhap[1].format("YYYY-MM-DD"),
                         id_BuaAn: buaAnNhap,
-                        diaDiemNhaAnId: diaDiemNhap,
+                        diaDiemNhaAnId: diaDiemDonLePhanBo,
                     }).unwrap();
 
                     dispatch(setNotify({
@@ -120,8 +139,13 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
         });
     };
 
+    // Bấm "Tìm kiếm" luôn quay về trang 1 — bộ lọc mới có thể cho ra ít
+    // trang hơn trang đang xem (cùng pattern Phieu1DanhSachPage.tsx).
     const timKiem = () => {
-        const locMoi = { khoangNgay: khoangNgayNhap, diaDiemLoc: diaDiemNhap, buaAnLoc: buaAnNhap, trangThaiLoc: trangThaiNhap };
+        const locMoi = {
+            khoangNgay: khoangNgayNhap, diaDiemLoc: diaDiemNhap, buaAnLoc: buaAnNhap, trangThaiLoc: trangThaiNhap,
+            page: 1, pageSize: boLocApDung.pageSize,
+        };
 
         // Bộ lọc không đổi so với lần "Tìm kiếm" trước -> setBoLocApDung sẽ
         // không tạo ra args mới cho RTK Query nên KHÔNG tự fetch lại (dùng
@@ -129,10 +153,14 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
         // server (VD để kiểm tra job Quartz TinhLaiKetQuaDanhGiaPhanBoJob vừa
         // chạy xong có cập nhật số liệu không) kể cả khi không đổi khoảng
         // ngày/địa điểm/bữa ăn/trạng thái -> chủ động refetch() để bỏ qua cache.
+        const diaDiemKhongDoi =
+            [...boLocApDung.diaDiemLoc].sort((a, b) => a - b).join(",") ===
+            [...locMoi.diaDiemLoc].sort((a, b) => a - b).join(",");
         const khongDoi =
-            boLocApDung.diaDiemLoc === locMoi.diaDiemLoc &&
+            diaDiemKhongDoi &&
             boLocApDung.buaAnLoc === locMoi.buaAnLoc &&
             boLocApDung.trangThaiLoc === locMoi.trangThaiLoc &&
+            boLocApDung.page === locMoi.page &&
             boLocApDung.khoangNgay[0].isSame(locMoi.khoangNgay[0], "day") &&
             boLocApDung.khoangNgay[1].isSame(locMoi.khoangNgay[1], "day");
 
@@ -153,6 +181,46 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
     }
 
     const tenDiaDiem = (id: number) => danhSachDiaDiem.find((d) => d.id === id)?.diaDiem ?? `#${id}`;
+
+    // Xuất Excel: KHÔNG dùng lại "danhSach" đang hiển thị trên bảng — gọi tay
+    // API lấy dữ liệu MỚI NHẤT theo đúng điều kiện lọc ĐANG CHỌN ở form
+    // search (ô nhập, không cần bấm "Tìm kiếm" trước, cùng pattern nút
+    // "Phân bổ lại" ở trên).
+    const xuLyXuatExcel = async () => {
+        setDangXuatExcel(true);
+        try {
+            const ketQua = await goiLayDanhSachXuat({
+                diaDiemNhaAnIds: diaDiemNhap.length > 0 ? diaDiemNhap : undefined,
+                idBuaAn: buaAnNhap,
+                tuNgay: khoangNgayNhap[0].format("YYYY-MM-DD"),
+                denNgay: khoangNgayNhap[1].format("YYYY-MM-DD"),
+                daCoGian: trangThaiNhap,
+            }).unwrap();
+
+            if (ketQua.length === 0) {
+                dispatch(setNotify({ typeNotify: "warning", titleNotify: "Không có dữ liệu khớp điều kiện lọc để xuất", messageNotify: "" }));
+                return;
+            }
+
+            await xuatExcelKetQuaDanhGiaPhanBo(ketQua, tenDiaDiem, {
+                tuNgay: khoangNgayNhap[0].format("DD/MM/YYYY"),
+                denNgay: khoangNgayNhap[1].format("DD/MM/YYYY"),
+                tenBuaAnLoc: tenBuaAnChon(buaAnNhap),
+                tenDiaDiemLoc: diaDiemNhap.length > 0
+                    ? diaDiemNhap.map((id) => tenDiaDiem(id)).join(", ")
+                    : "Tất cả địa điểm",
+                tenTrangThaiLoc: trangThaiNhap === true
+                    ? "Đã co giãn"
+                    : trangThaiNhap === false
+                        ? "Giữ nguyên"
+                        : "Tất cả trạng thái",
+            });
+        } catch {
+            dispatch(setNotify({ typeNotify: "error", titleNotify: "Xuất Excel thất bại", messageNotify: "" }));
+        } finally {
+            setDangXuatExcel(false);
+        }
+    };
 
     const columns: TableColumnsType<KetQuaDanhGiaPhanBoModel> = [
         {
@@ -257,8 +325,10 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
                     }}
                 />
                 <Select
-                    className="w-full sm:w-[220px]"
+                    className="w-full sm:w-[280px]"
+                    mode="multiple"
                     allowClear
+                    maxTagCount="responsive"
                     placeholder="-- Tất cả địa điểm --"
                     value={diaDiemNhap}
                     onChange={(value) => setDiaDiemNhap(value)}
@@ -291,17 +361,32 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
                 <Button type="default" icon={<IoSearchOutline />} className="text-blue-600 border-blue-600" onClick={timKiem}>
                     Tìm kiếm
                 </Button>
-                <Tooltip title={khoangNgayQuaDai ? "Chỉ được chọn khoảng thời gian tối đa 2 ngày để phân bổ lại" : ""}>
+                <Tooltip
+                    title={
+                        khoangNgayQuaDai
+                            ? "Chỉ được chọn khoảng thời gian tối đa 2 ngày để phân bổ lại"
+                            : khoaPhanBoLaiDoChonNhieuDiaDiem
+                                ? "Chỉ chọn 1 hoặc không chọn địa điểm (tất cả) để phân bổ lại"
+                                : ""
+                    }
+                >
                     <Button
                         type="primary"
                         icon={<FaCalculator />}
                         loading={dangPhanBo}
-                        disabled={khoangNgayQuaDai}
+                        disabled={khoangNgayQuaDai || khoaPhanBoLaiDoChonNhieuDiaDiem}
                         onClick={phanBoLai}
                     >
                         Phân bổ lại
                     </Button>
                 </Tooltip>
+                <Button
+                    icon={<FaFileExcel />}
+                    loading={dangXuatExcel}
+                    onClick={xuLyXuatExcel}
+                >
+                    Xuất Excel
+                </Button>
             </div>
 
             <Table
@@ -312,6 +397,14 @@ const KetQuaDanhGiaPhanBoPageV2: React.FC = () => {
                 scroll={{ x: 1300, y: "55vh" }}
                 bordered
                 size="small"
+                pagination={{
+                    current: boLocApDung.page,
+                    pageSize: boLocApDung.pageSize,
+                    total: data?.totalCount ?? 0,
+                    showSizeChanger: true,
+                    showTotal: (total) => `Tổng ${total} dòng`,
+                    onChange: (page, pageSize) => setBoLocApDung((prev) => ({ ...prev, page, pageSize })),
+                }}
             />
         </LayoutV2Component>
     );

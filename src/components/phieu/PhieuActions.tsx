@@ -1,4 +1,4 @@
-import { Button, Input, Modal, Popconfirm } from "antd";
+import { Button, Input, Modal, Popconfirm, Tooltip } from "antd";
 import React, { useState } from "react";
 import { FaSyncAlt, FaTrash, FaUndo } from "react-icons/fa";
 
@@ -25,6 +25,12 @@ export interface PhieuActionsProps {
     // (xem Phieu1Service.ThuHoiAsync/Phieu2Service.ThuHoiAsync). Bắt buộc nhập
     // lý do trước khi xác nhận, giống modal "Lý do từ chối" ở PhieuSignatures.
     dangThuHoi?: boolean;
+    // true khi phiếu được LẬP (NgayTao) ở tháng trước và tài khoản đang xem
+    // KHÔNG phải Admin — khóa nút "Thu hồi phiếu" (chỉ Admin được thu hồi
+    // phiếu đã qua tháng, xem Phieu1Service.ThuHoiAsync/Phieu2Service.ThuHoiAsync).
+    // Nút vẫn hiện (disabled + Tooltip giải thích) thay vì ẩn hẳn, để người
+    // dùng hiểu vì sao không thu hồi được.
+    chanThuHoiTheoThang?: boolean;
     onLuu?: () => void;
     onLamMoi?: () => void;
     onGuiKy?: () => void;
@@ -41,6 +47,7 @@ export const PhieuActions: React.FC<PhieuActionsProps> = ({
     dangGuiKy,
     dangLamMoi,
     dangThuHoi,
+    chanThuHoiTheoThang,
     onLuu,
     onLamMoi,
     onGuiKy,
@@ -129,15 +136,25 @@ export const PhieuActions: React.FC<PhieuActionsProps> = ({
                     )}
 
                     {coTheThuHoi && (
-                        <Button
-                            danger
-                            size="large"
-                            icon={<FaUndo />}
-                            loading={dangThuHoi}
-                            onClick={() => { setMoThuHoi(true); setLoiLyDoThuHoi(false); }}
-                        >
-                            Thu hồi phiếu
-                        </Button>
+                        chanThuHoiTheoThang ? (
+                            <Tooltip title="Phiếu được lập ở tháng trước — chỉ tài khoản Admin được thu hồi.">
+                                <span>
+                                    <Button danger size="large" icon={<FaUndo />} disabled>
+                                        Thu hồi phiếu
+                                    </Button>
+                                </span>
+                            </Tooltip>
+                        ) : (
+                            <Button
+                                danger
+                                size="large"
+                                icon={<FaUndo />}
+                                loading={dangThuHoi}
+                                onClick={() => { setMoThuHoi(true); setLoiLyDoThuHoi(false); }}
+                            >
+                                Thu hồi phiếu
+                            </Button>
+                        )
                     )}
 
                     {extraButtons}

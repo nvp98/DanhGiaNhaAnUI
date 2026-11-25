@@ -136,7 +136,6 @@ export const xuatPdfPhieu1 = async (params: XuatWordPhieu1Params): Promise<void>
         footer: chanTrang(CO_CHU, LE_TRANG),
         content: [
             dauTrangPhieu(logoDataUrl, LOGO_CAO_PX, THONG_TIN_BIEU_MAU_PHIEU1, 11, RONG_VUNG_IN),
-            doan(`Số: ${soHieu || "........................"}`, { co: 11, truoc: 5, sau: 5 }),
             doan("PHIẾU KIỂM TRA CÔNG TÁC VSATTP", { dam: true, canGiua: true, co: CO_CHU_TIEU_DE, sau: 0 }),
             doan(`TẠI BẾP ĂN ${tenBepAn?.toLocaleUpperCase("vi-VN") || "........................"}`, {
                 dam: true,
@@ -145,8 +144,16 @@ export const xuatPdfPhieu1 = async (params: XuatWordPhieu1Params): Promise<void>
                 sau: 10,
             }),
 
-            doan(`Nhà thầu: ${tenNhaThau || "........................"}`, { dam: true, canGiua: true }),
-            doan(`Ngày kiểm tra: ${ngayKiemTra}`, { dam: true, canGiua: true, sau: 10 }),
+            doan(
+                [
+                    `Nhà thầu: ${tenNhaThau || "........................"}`,
+                    "      ",
+                    `Ngày kiểm tra: ${ngayKiemTra}`,
+                    "      ",
+                    `Số hiệu: ${soHieu || "........................"}`,
+                ],
+                { dam: true, canGiua: true, sau: 10 }
+            ),
 
             doan("1. Thực trạng đánh giá", { dam: true, sau: 5 }),
             {

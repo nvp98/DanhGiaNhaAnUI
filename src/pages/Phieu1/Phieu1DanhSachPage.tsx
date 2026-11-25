@@ -13,6 +13,7 @@ import { useDanhSachPhongBanQuery } from "../../services/phongBanApiV2";
 import { setNotify } from "../../store/notifycationSlide";
 import { RootType } from "../../store/types";
 import { PhieuListHeader } from "../../components/phieu";
+import { dinhDangNgayGio } from "../../utils/dinhDangNgayGio";
 import { useGiuKhiQuayLai } from "../../utils/giuKhiQuayLai";
 
 const { RangePicker } = DatePicker;
@@ -40,7 +41,7 @@ interface BoLocDaApDung {
     pageSize: number;
 }
 
-const BO_LOC_MAC_DINH: BoLocDaApDung = { page: 1, pageSize: 10 };
+const BO_LOC_MAC_DINH: BoLocDaApDung = { page: 1, pageSize: 20 };
 
 // Khóa trang cho useGiuKhiQuayLai — trùng với khóa quayVeDanhSach dùng ở
 // Phieu1FormPage.tsx khi xóa phiếu.
@@ -141,9 +142,17 @@ const Phieu1DanhSachPage: React.FC = () => {
             title: 'Ngày kiểm tra',
             dataIndex: 'ngayKiemTra',
             key: 'ngayKiemTra',
-            width: 140,
-            render: (ngay) => new Date(ngay).toLocaleDateString("vi-VN"),
+            width: 160,
+            render: (ngay) => dinhDangNgayGio(ngay),
             sorter: { compare: (a, b) => a.ngayKiemTra.localeCompare(b.ngayKiemTra) },
+        },
+        {
+            title: 'Ngày tạo',
+            dataIndex: 'ngayTao',
+            key: 'ngayTao',
+            width: 160,
+            render: (ngay) => dinhDangNgayGio(ngay),
+            sorter: { compare: (a, b) => a.ngayTao.localeCompare(b.ngayTao) },
         },
         {
             title: 'Bếp ăn',
@@ -175,17 +184,25 @@ const Phieu1DanhSachPage: React.FC = () => {
         },
         {
             title: 'Nhà thầu đã ký',
-            dataIndex: 'tenNhaThauDaKy',
             key: 'tenNhaThauDaKy',
-            width: 200,
-            render: (ten) => ten || <span className="text-gray-400">Chưa ký</span>,
+            width: 220,
+            render: (_, record) => record.tenNhaThauDaKy
+                ? <div>
+                    <div>{record.tenNhaThauDaKy}</div>
+                    <div className="text-xs text-gray-400">{dinhDangNgayGio(record.ngayNhaThauDaKy)}</div>
+                </div>
+                : <span className="text-gray-400">Chưa ký</span>,
         },
         {
             title: 'Người đã ký',
-            dataIndex: 'tenNguoiDaKy',
             key: 'tenNguoiDaKy',
-            width: 200,
-            render: (ten) => ten || <span className="text-gray-400">Chưa ký</span>,
+            width: 220,
+            render: (_, record) => record.tenNguoiDaKy
+                ? <div>
+                    <div>{record.tenNguoiDaKy}</div>
+                    <div className="text-xs text-gray-400">{dinhDangNgayGio(record.ngayNguoiDaKy)}</div>
+                </div>
+                : <span className="text-gray-400">Chưa ký</span>,
         },
         ...(laAdmin ? [{
             title: 'Thao tác',
@@ -323,7 +340,7 @@ const Phieu1DanhSachPage: React.FC = () => {
             loading={isFetching}
             columns={columns}
             dataSource={danhSachPhieu}
-            scroll={{ x: 2000 }}
+            scroll={{ x: 2250 }}
             pagination={{
                 current: boLoc.page,
                 pageSize: boLoc.pageSize,

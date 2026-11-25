@@ -19,6 +19,10 @@ export interface PhieuHeaderProps {
     subtitle?: React.ReactNode;
     infoItems?: PhieuHeaderInfoItem[];
     className?: string;
+    // false khi soHieu đã được đưa vào infoItems để hiển thị cùng dòng với
+    // các thông tin khác (VD Phieu1FormPage.tsx) — tránh hiện trùng "Số: ..."
+    // ở góc trên cạnh logo.
+    hienSoHieuTrenCung?: boolean;
 }
 
 export const PhieuHeader: React.FC<PhieuHeaderProps> = ({
@@ -28,6 +32,7 @@ export const PhieuHeader: React.FC<PhieuHeaderProps> = ({
     subtitle,
     infoItems = [],
     className = "",
+    hienSoHieuTrenCung = true,
 }) => {
     const thongTinBieuMau = (phieuHeaderInfo as Record<MaPhieu, {
         soBieuMau: string;
@@ -40,7 +45,9 @@ export const PhieuHeader: React.FC<PhieuHeaderProps> = ({
             <div className="phieu-header-meta">
                 <div className="phieu-header-meta-left">
                     <img className="phieu-header-logo" src={logoPdf} alt="Logo" />
-                    <div className="phieu-header-so">Số: {soHieu || "........................"}</div>
+                    {hienSoHieuTrenCung && (
+                        <div className="phieu-header-so">Số: {soHieu || "........................"}</div>
+                    )}
                 </div>
                 <div className="phieu-header-meta-right">
                     <div>{thongTinBieuMau?.soBieuMau}</div>

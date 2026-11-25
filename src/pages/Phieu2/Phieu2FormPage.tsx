@@ -285,6 +285,10 @@ const Phieu2FormPage: React.FC = () => {
         phieu.trangThai === "NHAP" ||
         phieu.trangThai === "TU_CHOI";
 
+    // Khóa thu hồi theo tháng — xem Phieu1FormPage.tsx/Phieu2Service.ThuHoiAsync.
+    const chanThuHoiTheoThang =
+        !authV2.nguoiDung?.laAdmin && !!phieu && !dayjs(phieu.ngayTao).isSame(dayjs(), "month");
+
     const tenNhaThau = (id?: number) =>
         id ? danhSachNhaThau.find((nt: NhaThauModel) => nt.id === id)?.ten ?? "" : "";
 
@@ -387,11 +391,31 @@ const Phieu2FormPage: React.FC = () => {
     // ============================================================
 
     const luuPhieu = async () => {
-        if (!nhaThauId || nhaAnIds.length === 0) {
+        if (!thoiGianTu) {
             dispatch(
                 setNotify({
                     typeNotify: "error",
-                    titleNotify: "Vui lòng chọn nhà thầu và ít nhất 1 nhà ăn",
+                    titleNotify: "Vui lòng chọn ngày kiểm tra",
+                    messageNotify: "",
+                })
+            );
+            return;
+        }
+        if (!bepAnId || !nhaThauId) {
+            dispatch(
+                setNotify({
+                    typeNotify: "error",
+                    titleNotify: "Vui lòng chọn bếp ăn và nhà thầu",
+                    messageNotify: "",
+                })
+            );
+            return;
+        }
+        if (nhaAnIds.length === 0) {
+            dispatch(
+                setNotify({
+                    typeNotify: "error",
+                    titleNotify: "Vui lòng chọn ít nhất 1 nhà ăn",
                     messageNotify: "",
                 })
             );
@@ -1052,6 +1076,7 @@ const Phieu2FormPage: React.FC = () => {
                 dangLuu={dangThem || dangSua || dangLuuYKien}
                 dangGuiKy={dangGuiKy}
                 dangThuHoi={dangThuHoi}
+                chanThuHoiTheoThang={chanThuHoiTheoThang}
                 onLuu={luuPhieu}
                 onGuiKy={xuLyGuiKy}
                 onXoa={xuLyXoaPhieu}
